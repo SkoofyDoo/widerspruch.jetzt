@@ -1,5 +1,12 @@
-# serve.py — SGB II + SGB X RAG Widerspruch API (strict, no-strong-claims, no made-up facts)
-# Based on your working version + minimal improvements + tester-link access
+# serve.py — SGB II + SGB X RAG Widerspruch API (strict official letter style)
+# FULL WORKING FILE (copy-paste)
+#
+# PATCH (this round):
+# 1) Krank+Attest + Termin/Minderung: remove §24/Anhörung paragraph (unless user explicitly mentions Anhörung)
+# 2) Ensure "Aufhebung der Minderung + Neuberechnung" is ALWAYS included in the final Bitte-Absatz when %/Minderung/Kürzung/Meldeversäumnis is present
+# 3) Prompt updated to avoid §24 boilerplate for Krank+Attest Termin cases
+#
+# Base path: /mnt/data/pasted.txt
 
 import os
 import re
@@ -23,14 +30,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Telemetry off (best-effort) ---
 os.environ["ANONYMIZED_TELEMETRY"] = "FALSE"
 os.environ["CHROMA_TELEMETRY"] = "FALSE"
 
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
-# Stripe optional (if you use paywall)
 try:
     import stripe
 except Exception:
@@ -58,24 +63,23 @@ OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "120"))
 E5_QUERY_PREFIX = "query: "
 E5_PASSAGE_PREFIX = "passage: "
 
-DEFAULT_K = 8
+DEFAULT_K = 3
 MAX_K = 20
 RAG_OVERSAMPLE = 10
 DISTANCE_CUTOFF = float(os.getenv("DISTANCE_CUTOFF", "0.22"))
 
-# Guards
 STRICT_CITATIONS = True
 MAX_REPAIR_ROUNDS_CIT = 1
 
 NO_STRONG_CLAIMS = True
 MAX_REPAIR_ROUNDS_STRONG = 1
 
-# NEW: ANTRÄGE whitelist guard
 ANTRAEGE_WHITELIST = [
-    "Eingangsbestätigung dieses Widerspruchs.",
-    "Akteneinsicht in die das Verfahren betreffenden Unterlagen zur Vorbereitung der Begründung (soweit zulässig).",
-    "Schriftliche Erläuterung/Begründung des Bescheids (soweit erforderlich).",
-    "Überprüfung des Bescheids und erneute Entscheidung (ohne Vorwegnahme einer rechtlichen Bewertung).",
+    "Eingangsbestätigung dieses Widerspruchs",
+    "Akteneinsicht in die das Verfahren betreffenden Unterlagen zur Vorbereitung der Begründung (soweit zulässig)",
+    "Schriftliche Erläuterung/Begründung des Bescheids (soweit erforderlich)",
+    "Überprüfung des Bescheids und erneute Entscheidung",
+    "Aufhebung der Minderung sowie entsprechende Neuberechnung der Leistungen (soweit einschlägig)",
 ]
 
 ANTRAEGE_BANNED_TERMS_RX = re.compile(
@@ -83,10 +87,7 @@ ANTRAEGE_BANNED_TERMS_RX = re.compile(
     re.IGNORECASE
 )
 
-# -----------------------------
-# Tester links (new)
-# -----------------------------
-TESTER_SECRET = (os.getenv("TESTER_SECRET") or "").strip()  # set to enable tester access
+TESTER_SECRET = (os.getenv("TESTER_SECRET") or "").strip()
 TESTER_TTL_DAYS = int(os.getenv("TESTER_TTL_DAYS") or "14")
 TESTER_MAX_USES = int(os.getenv("TESTER_MAX_USES") or "30")
 ADMIN_SECRET = (os.getenv("ADMIN_SECRET") or "").strip()
@@ -118,12 +119,8 @@ except Exception as e:
 
 
 # -----------------------------
-# Stripe / subscriptions (optional)
+# JSON helpers
 # -----------------------------
-SUBS_DB = os.path.join("data", "subscriptions.json")
-EVENTS_DB = os.path.join("data", "stripe_events.json")
-
-
 def _load_json(path: str, default):
     if not os.path.exists(path):
         return default
@@ -154,6 +151,48 @@ def _parse_dt(s: str):
         return None
 
 
+# -----------------------------
+# German date helpers
+# -----------------------------
+_DE_MONTHS = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember"
+]
+
+
+def _fmt_de_long(d: date) -> str:
+    return f"{d.day:02d}. {_DE_MONTHS[d.month - 1]} {d.year}"
+
+
+def _parse_yyyy_mm_dd(s: str) -> Optional[date]:
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        parts = s.split("-")
+        if len(parts) != 3:
+            return None
+        y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+        return date(y, m, d)
+    except Exception:
+        return None
+
+
+def _fmt_bescheid_date_display(raw: str) -> str:
+    raw = (raw or "").strip()
+    d = _parse_yyyy_mm_dd(raw)
+    if d:
+        return _fmt_de_long(d)
+    return raw
+
+
+# -----------------------------
+# Stripe optional (unchanged)
+# -----------------------------
+SUBS_DB = os.path.join("data", "subscriptions.json")
+EVENTS_DB = os.path.join("data", "stripe_events.json")
+
+
 def _stripe_webhook_secret() -> str:
     return (os.getenv("STRIPE_WEBHOOK_SECRET_LIVE") if STRIPE_MODE == "live" else os.getenv("STRIPE_WEBHOOK_SECRET_TEST") or "").strip()
 
@@ -170,7 +209,6 @@ def _require_stripe_config():
     if stripe is None:
         raise HTTPException(500, "Stripe not installed. pip install stripe")
 
-    # ✅ fix: ensure api_key set from env
     sk = _stripe_secret_key()
     if not sk:
         raise HTTPException(500, "Missing Stripe secret key for current mode")
@@ -304,7 +342,7 @@ def _consume_use_or_402(user_id: str):
 
 
 # -----------------------------
-# Tester link helpers (new)
+# Tester helpers
 # -----------------------------
 def _tester_enabled() -> bool:
     return bool(TESTER_SECRET)
@@ -431,7 +469,7 @@ class WiderspruchRequest(BaseModel):
     text: Optional[str] = None
     question: Optional[str] = None
     facts: Dict[str, Any] = Field(default_factory=dict)
-    k: int = 6
+    k: int = DEFAULT_K
     language: Language = "de"
     style: Style = "standard"
     include_quellen: bool = False
@@ -447,7 +485,7 @@ class WiderspruchWorkflowRequest(BaseModel):
     text: Optional[str] = None
     question: Optional[str] = None
     facts: Optional[Dict[str, Any]] = None
-    k: int = 6
+    k: int = DEFAULT_K
     format: OutFormat = "txt"
     filename: Optional[str] = None
     language: Language = "de"
@@ -523,9 +561,361 @@ def _sanitize_widerspruch_text(t: str) -> str:
     t = _normalize_citation_order(t)
     t = re.sub(r"[ \t]{2,}", " ", t)
     t = re.sub(r"\n{3,}", "\n\n", t)
+
+    t = re.sub(r"\bWiderrufsprozesse?\b", "Verfahrensabläufe", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bWiderrufsprozess(?:e)?\b", "Verfahrensablauf", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bKopie des Bescheid\b", "Kopie des Bescheids", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bKopie vom Bescheid\b", "Kopie des Bescheids", t, flags=re.IGNORECASE)
+
+    # German phrasing fixes
+    t = re.sub(r"\beinen\s+ärztlichen\s+Bescheinigung\b", "eine ärztliche Bescheinigung", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bärztlichen\s+Bescheinigung\b", "ärztliche Bescheinigung", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bKrankheitstellung\b", "Erkrankung", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bmeine\s+Arbeit\s+zu\s+versehen\b", "den Termin wahrzunehmen", t, flags=re.IGNORECASE)
+    t = re.sub(r"\barbeit\s+zu\s+versehen\b", "den Termin wahrzunehmen", t, flags=re.IGNORECASE)
+
+    # remove filler
+    t = re.sub(r"\brelevante\s+Zeitperiode\b", "den betreffenden Zeitraum", t, flags=re.IGNORECASE)
+
     return t.strip()
 
 
+# -----------------------------
+# HALLUCINATION / TOPIC GUARDS
+# -----------------------------
+_WORK_TERMS_RX = re.compile(
+    r"\b(Arbeit(?:geber|sstelle)?|Job|Beschäftigung|Tätigkeit|Arbeitsstelle|Arbeitsverhältnis)\b",
+    re.IGNORECASE
+)
+_TERMIN_TERMS_RX = re.compile(
+    r"\b(Termin|Meldeversäumnis|Meldeaufforderung|Einladung)\b",
+    re.IGNORECASE
+)
+_KRANK_TERMS_RX = re.compile(
+    r"\b(krank|Krankheit|Attest|ärztlich|Arbeitsunfähigkeit|AU)\b",
+    re.IGNORECASE
+)
+
+# For new patch
+_ANHOERUNG_RX = re.compile(r"\b(Anhörung|§\s*24\s*SGB\s*X)\b", re.IGNORECASE)
+_MINDERUNG_RX = re.compile(r"\b(kürzung|minderung|leistung(en)?\s*um|%|prozent|terminversäumnis|meldeversäumnis)\b", re.IGNORECASE)
+
+def _is_krank_attest_termin_case(req_text: str) -> bool:
+    rt = (req_text or "")
+    return bool(_TERMIN_TERMS_RX.search(rt)) and bool(_KRANK_TERMS_RX.search(rt)) and bool(_MINDERUNG_RX.search(rt))
+
+def _user_explicitly_mentions_anhörung(req_text: str) -> bool:
+    rt = (req_text or "")
+    return bool(re.search(r"\banhörung\b|§\s*24\b", rt, flags=re.IGNORECASE))
+
+def _guard_remove_work_context_if_not_in_user_text(letter: str, req_text: str) -> str:
+    lt = letter or ""
+    ut = req_text or ""
+
+    user_mentions_work = bool(_WORK_TERMS_RX.search(ut))
+    user_mentions_termin = bool(_TERMIN_TERMS_RX.search(ut)) or ("termin" in ut.lower())
+    user_mentions_km = bool(_KRANK_TERMS_RX.search(ut))
+
+    if user_mentions_termin and user_mentions_km and (not user_mentions_work):
+        lt = re.sub(r"\bmeine\s+Arbeit\s+zu\s+versehen\b", "den Termin wahrzunehmen", lt, flags=re.IGNORECASE)
+        lt = re.sub(r"\bmeiner\s+Arbeit\b", "dem Termin", lt, flags=re.IGNORECASE)
+        lt = re.sub(r"\bArbeitsstelle\b|\bArbeitgeber\b|\bArbeitsverhältnis\b", "", lt, flags=re.IGNORECASE)
+        lt = re.sub(r"[ \t]{2,}", " ", lt)
+        lt = re.sub(r"\n{3,}", "\n\n", lt)
+        lt = lt.strip()
+
+    return lt
+
+
+def _guard_remove_anhörung_para_for_krank_attest(letter: str, req_text: str) -> str:
+    """
+    Patch: if it's a Krank+Attest + Termin/Minderung case AND user did NOT explicitly mention Anhörung,
+    remove paragraphs that contain §24 SGB X / Anhörung boilerplate.
+    Keep the letter coherent and add a neutral sentence if needed.
+    """
+    if not _is_krank_attest_termin_case(req_text):
+        return letter
+    if _user_explicitly_mentions_anhörung(req_text):
+        return letter
+
+    t = (letter or "").replace("\r\n", "\n").replace("\r", "\n")
+    paras = [p.strip() for p in re.split(r"\n\s*\n", t) if p.strip()]
+    if not paras:
+        return letter
+
+    removed = False
+    new_paras = []
+    for p in paras:
+        # remove only body paras containing Anhörung/§24; keep header blocks safe
+        if _ANHOERUNG_RX.search(p):
+            # avoid removing header if something weird matches there; only remove if it looks like a body paragraph
+            if "Sehr geehrte" in p or "Betreff:" in p or "Mit freundlichen Grüßen" in p:
+                new_paras.append(p)
+            else:
+                removed = True
+            continue
+        new_paras.append(p)
+
+    if removed:
+        # Ensure there is still a short "wichtiger Grund" style paragraph somewhere in body
+        joined = "\n\n".join(new_paras)
+        if not re.search(r"\bwichtiger\s+Grund\b", joined, flags=re.IGNORECASE):
+            insert_text = (
+                "Ich bitte um Prüfung des Vorgangs unter Berücksichtigung meiner Erkrankung als wichtiger Grund "
+                "sowie um eine entsprechende Neubewertung."
+            )
+            # Insert before the last request paragraph if possible
+            # Find paragraph that starts with "Ich bitte" and insert before it
+            inserted = False
+            out2 = []
+            for p in new_paras:
+                if (not inserted) and re.match(r"^Ich bitte\b", p, flags=re.IGNORECASE):
+                    out2.append(insert_text)
+                    inserted = True
+                out2.append(p)
+            new_paras = out2 if inserted else (new_paras + [insert_text])
+
+        t2 = "\n\n".join(new_paras)
+        t2 = _sanitize_widerspruch_text(t2)
+        return t2
+
+    return letter
+
+
+# -----------------------------
+# Jobcenter address hydration
+# -----------------------------
+def _load_jobcenter_index():
+    data = _load_json(JOB_CENTER_JSON, [])
+    by_id = {}
+    by_label = {}
+    if isinstance(data, list):
+        for rec in data:
+            if not isinstance(rec, dict):
+                continue
+            rid = (rec.get("id") or "").strip()
+            label = (rec.get("label") or "").strip()
+            if rid:
+                by_id[rid] = rec
+            if label:
+                key = re.sub(r"\s+", " ", label.lower()).strip()
+                by_label[key] = rec
+    return by_id, by_label
+
+
+_JOB_CENTER_INDEX = None
+
+
+def _ensure_jobcenter_index():
+    global _JOB_CENTER_INDEX
+    if _JOB_CENTER_INDEX is None:
+        _JOB_CENTER_INDEX = _load_jobcenter_index()
+    return _JOB_CENTER_INDEX
+
+
+def _hydrate_jobcenter_from_db(facts: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(facts, dict):
+        return facts or {}
+
+    has_any = bool(_safe_str(facts.get("jobcenter_address")) or _safe_str(facts.get("jobcenter_postalCode") or facts.get("jobcenter_postal_code") or facts.get("jobcenter_plz")) or _safe_str(facts.get("jobcenter_city")))
+    if has_any:
+        return facts
+
+    by_id, by_label = _ensure_jobcenter_index()
+
+    jc_id = _safe_str(facts.get("jobcenter_id"))
+    jc_label = _safe_str(facts.get("jobcenter_label") or facts.get("jobcenter"))
+
+    rec = None
+    if jc_id and jc_id in by_id:
+        rec = by_id[jc_id]
+    elif jc_label:
+        key = re.sub(r"\s+", " ", jc_label.lower()).strip()
+        rec = by_label.get(key)
+
+    if not rec:
+        return facts
+
+    if not _safe_str(facts.get("jobcenter_label")) and _safe_str(rec.get("label")):
+        facts["jobcenter_label"] = rec.get("label")
+
+    if not _safe_str(facts.get("jobcenter_address")) and _safe_str(rec.get("address")):
+        facts["jobcenter_address"] = rec.get("address")
+
+    if not _safe_str(facts.get("jobcenter_postalCode") or facts.get("jobcenter_postal_code") or facts.get("jobcenter_plz")) and _safe_str(rec.get("postalCode")):
+        facts["jobcenter_postalCode"] = rec.get("postalCode")
+
+    if not _safe_str(facts.get("jobcenter_city")) and _safe_str(rec.get("city")):
+        facts["jobcenter_city"] = rec.get("city")
+
+    return facts
+
+
+# -----------------------------
+# Official-letter style enforcement
+# -----------------------------
+_STYLE_FORBIDDEN_HEADINGS_RX = re.compile(
+    r"^\s*(KURZER\s+SACHVERHALT|SACHVERHALT|RECHTLICHE\s+PUNKTE|RECHTLICHE\s+HINWEISE|ANTRÄGE|ANTRAG|BEGRÜNDUNG)\s*:?\s*$",
+    re.IGNORECASE | re.MULTILINE
+)
+_STYLE_FORBIDDEN_ENUM_RX = re.compile(r"^\s*[A-Z]\)\s+.*$", re.MULTILINE)
+_STYLE_FORBIDDEN_BULLET_RX = re.compile(r"^\s*[-•]\s+.*$", re.MULTILINE)
+_STYLE_FORBIDDEN_ANLAGEN_RX = re.compile(r"^\s*Anlagen\s*:.*$", re.IGNORECASE)
+_STYLE_FORBIDDEN_ANLAGEN_ITEM_RX = re.compile(r"^\s*(?:-|\u2022)?\s*Kopie\s+(?:des|vom)\s+Bescheid", re.IGNORECASE)
+
+
+def _remove_klaeger_terms(text: str) -> str:
+    t = text or ""
+    t = re.sub(r"\bDer\s+Kläger\b", "Ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bKläger\b", "Widerspruchsführer", t, flags=re.IGNORECASE)
+    return t
+
+
+def _flatten_list_block(lines: List[str]) -> str:
+    items = []
+    for ln in lines:
+        ln = re.sub(r"^\s*[-•]\s+", "", ln).strip()
+        ln = re.sub(r"\s*;\s*$", "", ln).strip()
+        if ln:
+            items.append(ln)
+    if not items:
+        return ""
+    s = "; ".join(items)
+    if not s.endswith("."):
+        s += "."
+    return s
+
+
+def _enforce_official_no_lists(body: str) -> str:
+    t = (body or "").replace("\r\n", "\n").replace("\r", "\n")
+    t = _remove_klaeger_terms(t)
+
+    t = "\n".join([ln for ln in t.split("\n") if not _STYLE_FORBIDDEN_ANLAGEN_RX.match(ln)])
+    t = "\n".join([ln for ln in t.split("\n") if not _STYLE_FORBIDDEN_ANLAGEN_ITEM_RX.match(ln)])
+
+    t = _STYLE_FORBIDDEN_HEADINGS_RX.sub("", t)
+    t = _STYLE_FORBIDDEN_ENUM_RX.sub("", t)
+
+    out_lines = []
+    buf_bullets = []
+
+    for raw in t.split("\n"):
+        ln = raw.rstrip()
+
+        if _STYLE_FORBIDDEN_BULLET_RX.match(ln):
+            buf_bullets.append(ln)
+            continue
+
+        if buf_bullets:
+            flat = _flatten_list_block(buf_bullets)
+            if flat:
+                out_lines.append(flat)
+            buf_bullets = []
+
+        out_lines.append(ln)
+
+    if buf_bullets:
+        flat = _flatten_list_block(buf_bullets)
+        if flat:
+            out_lines.append(flat)
+
+    t2 = "\n".join(out_lines)
+    t2 = re.sub(r"\n{3,}", "\n\n", t2).strip()
+
+    if not t2.strip():
+        t2 = "Ich bitte um Prüfung des Bescheids und um eine erneute Entscheidung."
+
+    return t2
+
+
+# -----------------------------
+# Bitte paragraph (enforced)
+# -----------------------------
+_BITTE_START_RX = re.compile(r"^\s*(Ich bitte(?: Sie)? um|Bitte bestätigen Sie|Ich bitte Sie um)\b", re.IGNORECASE)
+_BITTE_CONTAINS_RX = re.compile(r"\b(Eingangsbestätigung|Akteneinsicht|Erläuterung|Begründung|erneute Entscheidung|Überprüfung|Aufhebung|Neuberechnung)\b", re.IGNORECASE)
+_BITTE_SOFT_RX = re.compile(
+    r"^\s*(?:Bitte\s+prüfen\s+Sie\b|Ich\s+bitte\s+Sie\s+(?:daher|darum),\s*(?:den\s+Vorgang|den\s+Bescheid).{0,120}\bzu\s+prüfen\b)",
+    re.IGNORECASE | re.DOTALL
+)
+
+def _build_safe_bitte_paragraph(req_text: str) -> str:
+    rt = (req_text or "")
+    wants_akte = bool(re.search(r"\bakteneinsicht\b", rt, flags=re.IGNORECASE))
+    wants_begruendung = bool(re.search(r"\bbegründung\b|\berläuterung\b|\bnachvollziehbar\b", rt, flags=re.IGNORECASE))
+    wants_minderung_aufhebung = bool(_MINDERUNG_RX.search(rt))
+
+    parts = [ANTRAEGE_WHITELIST[0]]
+    if wants_akte:
+        parts.append(ANTRAEGE_WHITELIST[1])
+    if wants_begruendung:
+        parts.append(ANTRAEGE_WHITELIST[2])
+    parts.append(ANTRAEGE_WHITELIST[3])
+    if wants_minderung_aufhebung:
+        parts.append(ANTRAEGE_WHITELIST[4])
+
+    return "Ich bitte um " + "; ".join(parts) + "."
+
+def _dedupe_and_fix_bitte_paragraphs(head_text: str, req_text: str) -> str:
+    t = (head_text or "").replace("\r\n", "\n").replace("\r", "\n")
+    t = _remove_klaeger_terms(t)
+
+    paras = [p.strip() for p in re.split(r"\n\s*\n", t) if p.strip()]
+    if not paras:
+        return _build_safe_bitte_paragraph(req_text)
+
+    found_idx = []
+    for i, p in enumerate(paras):
+        if _BITTE_START_RX.search(p) or _BITTE_SOFT_RX.search(p) or (_BITTE_CONTAINS_RX.search(p) and "Mit freundlichen Grüßen" not in p):
+            found_idx.append(i)
+
+    if not found_idx:
+        paras.append(_build_safe_bitte_paragraph(req_text))
+        return "\n\n".join(paras).strip()
+
+    keep = found_idx[-1]
+
+    new_paras = []
+    for i, p in enumerate(paras):
+        if i in found_idx and i != keep:
+            continue
+        new_paras.append(p)
+
+    kept_para = paras[keep]
+    keep_new = 0
+    for i, p in enumerate(new_paras):
+        if p == kept_para:
+            keep_new = i
+            break
+
+    # If banned terms / too long / missing Eingangsbestätigung => replace
+    kept = new_paras[keep_new]
+    if ANTRAEGE_BANNED_TERMS_RX.search(kept) or len(kept) > 520:
+        new_paras[keep_new] = _build_safe_bitte_paragraph(req_text)
+
+    if not re.search(r"\bEingangsbestätigung\b", new_paras[keep_new], flags=re.IGNORECASE):
+        new_paras[keep_new] = _build_safe_bitte_paragraph(req_text)
+
+    # PATCH: If Minderung/% case => FORCE Aufhebung+Neuberechnung in the final Bitte paragraph
+    if bool(_MINDERUNG_RX.search(req_text or "")):
+        if not re.search(r"\bAufhebung\b|\bNeuberechnung\b", new_paras[keep_new], flags=re.IGNORECASE):
+            new_paras[keep_new] = _build_safe_bitte_paragraph(req_text)
+
+    # Drop redundant soft request paragraphs
+    kept_now = new_paras[keep_new]
+    if _BITTE_START_RX.search(kept_now):
+        cleaned = []
+        for idx, p in enumerate(new_paras):
+            if idx != keep_new and _BITTE_SOFT_RX.search(p):
+                continue
+            cleaned.append(p)
+        new_paras = cleaned
+
+    return "\n\n".join(new_paras).strip()
+
+
+# -----------------------------
+# Validation
+# -----------------------------
 def _validate_text(text: str) -> Dict[str, Any]:
     t = (text or "").strip()
     warnings, errors = [], []
@@ -538,6 +928,15 @@ def _validate_text(text: str) -> Dict[str, Any]:
 
     if re.search(r"\bWiderspruch\b", t, flags=re.IGNORECASE) is None:
         errors.append("Missing keyword 'Widerspruch' in the letter text.")
+
+    if re.search(r"\bKläger\b", t, flags=re.IGNORECASE):
+        warnings.append("Contains 'Kläger' — should be avoided in Widerspruch (court term).")
+
+    if _STYLE_FORBIDDEN_BULLET_RX.search(t):
+        warnings.append("Contains bullet list lines — should be paragraphs for official letter style.")
+
+    if _STYLE_FORBIDDEN_ENUM_RX.search(t):
+        warnings.append("Contains A)/B) style enumerations — should be avoided.")
 
     ok = (len(errors) == 0)
     return {"ok": ok, "errors": errors, "warnings": warnings, "counts": {"errors": len(errors), "warnings": len(warnings)}}
@@ -553,11 +952,9 @@ PROC_KEYWORDS = [
     "wiedereinsetzung"
 ]
 
-
 def _is_procedural_query(q: str) -> bool:
     ql = (q or "").lower()
     return any(k in ql for k in PROC_KEYWORDS)
-
 
 def _extract_allowed_paragraphs_from_query(q: str):
     m = re.search(r"§\s*(\d+[a-z]?)", q, flags=re.IGNORECASE)
@@ -571,20 +968,17 @@ def _extract_allowed_paragraphs_from_query(q: str):
             allowed.add(f"§ {x}")
     return allowed
 
-
 def _is_good_chunk(text: str) -> bool:
     t = (text or "").strip()
     if not t:
         return False
     return ("(1)" in t) or ("(2)" in t) or ("(3)" in t)
 
-
 def _norm_paragraph(p: str) -> str:
     p = (p or "").strip().lower()
     if not p:
         return ""
     return p.replace("§", "").strip()
-
 
 def _collect_items_from_res(res, q: str, allowed, require_absatz: bool, k: int, seen: set, existing=None):
     items = list(existing or [])
@@ -631,7 +1025,6 @@ def _collect_items_from_res(res, q: str, allowed, require_absatz: bool, k: int, 
 
     return items
 
-
 def _retrieve(q: str, k: int, require_absatz: bool = True):
     k = max(1, min(MAX_K, int(k or DEFAULT_K)))
     take = max(60, k * RAG_OVERSAMPLE)
@@ -662,7 +1055,6 @@ def _retrieve(q: str, k: int, require_absatz: bool = True):
     items = _collect_items_from_res(res2, q, allowed, require_absatz, k, seen, existing=items)
     return items
 
-
 def _build_context(items) -> str:
     return "\n\n".join(
         f"[{it.get('law','')} {it.get('paragraph','')} | {it['id']} | {it['source_file']}]\n{it['text']}"
@@ -675,13 +1067,11 @@ def _build_context(items) -> str:
 # -----------------------------
 _CIT_RE = re.compile(r"(?:§\s*\d+[a-z]?)\s*(?:SGB\s*(?:I{1,3}|IV|V|VI|VII|VIII|IX|X|XI|XII|II|2))", flags=re.IGNORECASE)
 
-
 def _norm_citation(c: str) -> str:
     c = (c or "").strip()
     c = re.sub(r"\s+", " ", c)
     c = c.replace("SGB 2", "SGB II")
     return c.upper()
-
 
 def _extract_citations(text: str) -> set:
     if not text:
@@ -691,7 +1081,6 @@ def _extract_citations(text: str) -> set:
     for m in _CIT_RE.finditer(t):
         found.add(_norm_citation(m.group(0)))
     return found
-
 
 def _allowed_citations_from_items(items) -> set:
     out = set()
@@ -703,7 +1092,6 @@ def _allowed_citations_from_items(items) -> set:
         par2 = par.strip() if par.strip().startswith("§") else "§ " + par.strip()
         out.add(_norm_citation(f"{par2} {law}"))
     return out
-
 
 def _repair_remove_illegal_citations(text: str, illegal: List[str]) -> str:
     t = text or ""
@@ -719,7 +1107,6 @@ def _repair_remove_illegal_citations(text: str, illegal: List[str]) -> str:
     t = re.sub(r"[ \t]{2,}", " ", t)
     t = re.sub(r"\n{3,}", "\n\n", t)
     return t.strip()
-
 
 def _repair_illegal_citations_with_ollama(text: str, items, illegal: List[str]) -> str:
     allowed = sorted(list(_allowed_citations_from_items(items)))
@@ -751,24 +1138,17 @@ _STRONG_PATTERNS = [
     (re.compile(r"\bführt\s+zu[r]?\s+Nichtigkeit\b", re.IGNORECASE), "absolute_nichtigkeit"),
     (re.compile(r"\bist\s+rechtswidrig\b", re.IGNORECASE), "absolute_rechtswidrig"),
     (re.compile(r"\bkeine\s+Ausnahmen\s+vorliegen\b", re.IGNORECASE), "assumes_no_exceptions"),
-
     (re.compile(r"\bungültig\b|\bunwirksam\b", re.IGNORECASE), "invalidity_words"),
     (re.compile(r"\bnichtig(?:keit)?\b", re.IGNORECASE), "nichtigkeit_any"),
-
     (re.compile(r"\bschwerwiegenden?\s+Fehler\b", re.IGNORECASE), "schwerwiegender_fehler"),
     (re.compile(r"\bbesonders\s+schwerwiegenden?\s+Fehler\b", re.IGNORECASE), "besondere_schwere"),
     (re.compile(r"\bschwerwiegend\w*\b", re.IGNORECASE), "schwerwiegend_any"),
-
     (re.compile(r"\boffensichtlich\b", re.IGNORECASE), "offensichtlich_word"),
     (re.compile(r"\bohne\s+Zweifel\b|\beindeutig\b|\bsicher\b", re.IGNORECASE), "certainty_words"),
     (re.compile(r"\bes\s+ist\s+klar\b", re.IGNORECASE), "it_is_clear"),
     (re.compile(r"\bfragwürdig\b", re.IGNORECASE), "fragwuerdig"),
     (re.compile(r"\bwahrscheinlich\b", re.IGNORECASE), "wahrscheinlich"),
-
-    (re.compile(r"\bGültigkeit\b", re.IGNORECASE), "gueltigkeit"),
-    (re.compile(r"\bWirksamkeit\b|\bwirksam\b", re.IGNORECASE), "wirksamkeit"),
 ]
-
 
 def _find_strong_claims(text: str) -> List[str]:
     t = _normalize_citation_order(text or "")
@@ -778,7 +1158,6 @@ def _find_strong_claims(text: str) -> List[str]:
             hits.append(name)
     return hits
 
-
 def _hard_soften_strong_claims(text: str) -> str:
     t = _normalize_citation_order(text or "")
 
@@ -786,41 +1165,24 @@ def _hard_soften_strong_claims(text: str) -> str:
         r"\bführt\s+zu[r]?\s+Nichtigkeit\b": "kann einen Verfahrensmangel begründen",
         r"\bist\s+rechtswidrig\b": "erscheint rechtswidrig",
         r"\bkeine\s+Ausnahmen\s+vorliegen\b": "soweit keine Ausnahme eingreift",
-
         r"\bungültig\b|\bunwirksam\b": "verfahrensfehlerhaft",
         r"\bnichtig(?:keit)?\b": "Verfahrensmangel",
-
         r"\bschwerwiegenden?\s+Fehler\b": "Verfahrensmangel",
         r"\bbesonders\s+schwerwiegenden?\s+Fehler\b": "Verfahrensmangel",
         r"\bschwerwiegend\w*\b": "",
-
         r"\boffensichtlich\b": "",
         r"\bohne\s+Zweifel\b|\beindeutig\b|\bsicher\b": "nach Aktenlage",
         r"\bes\s+ist\s+klar\b": "nach Aktenlage",
-
         r"\bfragwürdig\b": "prüfungsbedürftig",
         r"\bwahrscheinlich\b": "",
-
-        r"\bGültigkeit\b": "Rechtmäßigkeit",
-        r"\bWirksamkeit\b|\bwirksam\b": "Rechtswirkung",
     }
 
     for pat, repl in BAN_REPLACEMENTS.items():
         t = re.sub(pat, repl, t, flags=re.IGNORECASE)
 
-    if re.search(r"§\s*40\s*SGB\s*X", t, flags=re.IGNORECASE):
-        lines = t.splitlines()
-        new_lines = []
-        for ln in lines:
-            if re.search(r"§\s*40\s*SGB\s*X", ln, flags=re.IGNORECASE):
-                continue
-            new_lines.append(ln)
-        t = "\n".join(new_lines).strip()
-
     t = re.sub(r"[ \t]{2,}", " ", t)
     t = re.sub(r"\n{3,}", "\n\n", t)
     return t.strip()
-
 
 def _repair_strong_claims_with_ollama(text: str, flags: List[str]) -> str:
     prompt = f"""SYSTEM:
@@ -845,85 +1207,7 @@ TEXT_TO_FIX:
 
 
 # -----------------------------
-# Body structure enforcement
-# -----------------------------
-def _enforce_body_structure(body: str) -> str:
-    t = (body or "").strip()
-    t = _sanitize_widerspruch_text(t)
-
-    if "KURZER SACHVERHALT:" not in t:
-        if re.search(r"^\s*Kurzer Sachverhalt", t, flags=re.IGNORECASE | re.MULTILINE):
-            t = re.sub(r"^\s*Kurzer Sachverhalt\s*$", "KURZER SACHVERHALT:", t, flags=re.IGNORECASE | re.MULTILINE)
-        else:
-            t = "KURZER SACHVERHALT:\n" + t
-
-    if "RECHTLICHE PUNKTE:" not in t:
-        t += "\n\nRECHTLICHE PUNKTE:\nA) VERFAHRENSRECHT (SGB X):\n- Derzeit nicht abschließend möglich.\nB) MATERIELL-RECHTLICH (SGB II):\n- Derzeit nicht abschließend möglich."
-
-    if "ANTRÄGE:" not in t:
-        t += "\n\nANTRÄGE:\n- Eingangsbestätigung dieses Widerspruchs."
-
-    if not re.search(r"A\)\s*VERFAHRENSRECHT\s*\(SGB X\):", t, flags=re.IGNORECASE):
-        t = re.sub(r"(RECHTLICHE PUNKTE:\s*)", r"\1\nA) VERFAHRENSRECHT (SGB X):\n- Derzeit nicht abschließend möglich.\n\n", t, flags=re.IGNORECASE)
-    if not re.search(r"B\)\s*MATERIELL-RECHTLICH\s*\(SGB II\):", t, flags=re.IGNORECASE):
-        t = re.sub(r"(A\)\s*VERFAHRENSRECHT\s*\(SGB X\):.*?)(\n\s*ANTRÄGE:)", r"\1\n\nB) MATERIELL-RECHTLICH (SGB II):\n- Derzeit nicht abschließend möglich.\2", t, flags=re.IGNORECASE | re.DOTALL)
-
-    t = re.sub(
-        r"(A\)\s*VERFAHRENSRECHT\s*\(SGB X\):\s*)(\n\s*B\))",
-        r"\1\n- Derzeit nicht abschließend möglich.\n\nB)",
-        t,
-        flags=re.IGNORECASE
-    )
-    t = re.sub(
-        r"(B\)\s*MATERIELL-RECHTLICH\s*\(SGB II\):\s*)(\n\s*ANTRÄGE:)",
-        r"\1\n- Derzeit nicht abschließend möglich.\n\nANTRÄGE:",
-        t,
-        flags=re.IGNORECASE
-    )
-
-    m = re.search(r"ANTRÄGE:\s*(.*)$", t, flags=re.IGNORECASE | re.DOTALL)
-    if m:
-        tail = m.group(1).strip()
-        bullets = re.findall(r"^\s*-\s+.+$", tail, flags=re.MULTILINE)
-        if len(bullets) < 2:
-            add = [
-                "- Eingangsbestätigung dieses Widerspruchs.",
-                "- Akteneinsicht in die das Verfahren betreffenden Unterlagen zur Vorbereitung der Begründung (soweit zulässig).",
-            ]
-            t = re.sub(r"(ANTRÄGE:\s*)", r"\1\n" + "\n".join(add) + "\n", t, flags=re.IGNORECASE)
-
-    t = re.sub(r"\n{3,}", "\n\n", t).strip()
-    return t
-
-
-# -----------------------------
-# NEW: ANTRÄGE whitelist hard replacement
-# -----------------------------
-def _replace_antraege_with_safe_defaults(text: str, req_text: str) -> str:
-    t = text or ""
-    wants_akte = bool(re.search(r"\bakteneinsicht\b", (req_text or ""), flags=re.IGNORECASE))
-    wants_begruendung = bool(re.search(r"\bbegründung\b|\berläuterung\b", (req_text or ""), flags=re.IGNORECASE))
-
-    bullets = [ANTRAEGE_WHITELIST[0]]
-    if wants_akte:
-        bullets.append(ANTRAEGE_WHITELIST[1])
-    if wants_begruendung:
-        bullets.append(ANTRAEGE_WHITELIST[2])
-    bullets.append(ANTRAEGE_WHITELIST[3])
-
-    new_block = "ANTRÄGE:\n" + "\n".join([f"- {b}" for b in bullets]) + "\n"
-
-    if re.search(r"ANTRÄGE:\s*", t, flags=re.IGNORECASE):
-        t = re.sub(r"ANTRÄGE:\s*.*$", new_block.strip(), t, flags=re.IGNORECASE | re.DOTALL)
-    else:
-        t = (t.rstrip() + "\n\n" + new_block).strip()
-
-    t = re.sub(r"\n{3,}", "\n\n", t).strip()
-    return t
-
-
-# -----------------------------
-# Letter building (facts-only)
+# Letter building
 # -----------------------------
 def _fmt_jobcenter_address(facts: Dict[str, Any]) -> Optional[str]:
     addr = _safe_str(facts.get("jobcenter_address"))
@@ -936,7 +1220,6 @@ def _fmt_jobcenter_address(facts: Dict[str, Any]) -> Optional[str]:
         parts.append(" ".join([p for p in [plz, city] if p]).strip())
     out = "\n".join([p for p in parts if p])
     return out if out else None
-
 
 def _fmt_user_block(facts: Dict[str, Any]) -> str:
     lines = []
@@ -961,7 +1244,6 @@ def _fmt_user_block(facts: Dict[str, Any]) -> str:
 
     return "\n".join(lines).strip()
 
-
 def _fmt_jobcenter_block_strict(facts: Dict[str, Any]) -> str:
     jc_label = _safe_str(facts.get("jobcenter_label") or facts.get("jobcenter"))
     jc_addr = _fmt_jobcenter_address(facts)
@@ -973,63 +1255,68 @@ def _fmt_jobcenter_block_strict(facts: Dict[str, Any]) -> str:
         return f"An\nJobcenter\n{jc_addr}".strip()
     return "An\ndas zuständige Jobcenter"
 
-
 def _fmt_date_line(facts: Dict[str, Any]) -> str:
     dt = _safe_str(facts.get("letter_date"))
     if not dt:
-        try:
-            dt = date.today().strftime("%d. %B %Y")
-        except Exception:
-            dt = date.today().isoformat()
+        dt = _fmt_de_long(date.today())
     user_city = _safe_str(facts.get("user_city"))
     if user_city:
         return f"{user_city}, den {dt}"
     return dt
 
-
 def _make_anlagen_list(req_text: str, facts: Dict[str, Any]) -> List[str]:
+    if bool(facts.get("no_anlagen")):
+        return []
     out = ["Kopie des Bescheids"]
     extra = facts.get("anlagen")
     if isinstance(extra, list):
         for x in extra:
             s = _safe_str(x)
+            s = re.sub(r"[.]+$", "", s).strip()
             if s:
                 out.append(s)
+
     seen, uniq = set(), []
     for a in out:
-        key = a.lower()
+        a2 = re.sub(r"[.]+$", "", (a or "")).strip()
+        if not a2:
+            continue
+        key = a2.lower()
         if key in seen:
             continue
         seen.add(key)
-        uniq.append(a)
+        uniq.append(a2)
     return uniq
 
 
+# -----------------------------
+# Body prompt (patched)
+# -----------------------------
 def _widerspruch_body_prompt(context: str, facts: dict, req_text: str) -> str:
     bescheid_datum = _safe_str(facts.get("bescheid_datum"))
     zugang_datum = _safe_str(facts.get("zugang_datum"))
 
     return f"""SYSTEM:
-Du schreibst den INHALT eines Widerspruchs ans Jobcenter (Deutsch).
+Du schreibst den INHALT (Fließtext) eines formellen deutschen Widerspruchs an ein Jobcenter.
+
 HARTE REGELN:
+- Schreibe ausschließlich in zusammenhängenden Absätzen (Fließtext). KEINE Überschriften, KEINE Listen, KEINE Aufzählungszeichen, KEINE A)/B).
+- Verwende NICHT die Begriffe "Kläger", "Beklagter".
 - Verwende NUR Fakten aus USER_TEXT und FACTS. Keine erfundenen Details.
 - Zitiere Gesetze (§) NUR, wenn sie im CONTEXT stehen. Sonst keine §-Nummern.
 - KEINE starken Schlussfolgerungen: NICHT "ungültig", "unwirksam", "nichtig", "Nichtigkeit", "offensichtlich", "schwerwiegend".
 - Keine Garantien. Nur neutral: "bitte prüfen", "es bestehen Zweifel", "nach Aktenlage".
-- ANTRÄGE: KEINE Gesetzesverweise, keine Hinweise auf "Heilung", "Wiedereinsetzung" o.ä.
-- Gib GENAU dieses Format zurück (keine Markdown-Überschriften, keine ###):
+- WICHTIG: Erst 1–3 Absätze zur kurzen Begründung/Prüfbitte, DANACH als letzten Absatz eine kurze Bitte (Eingangsbestätigung / ggf. Akteneinsicht / ggf. Erläuterung / erneute Entscheidung).
+- Schreibe KEINEN Abschnitt "Anlagen" und erwähne "Anlagen" nicht. Anlagen werden außerhalb des Bodys eingefügt.
 
-KURZER SACHVERHALT:
-<2-4 Sätze>
+TOPIC GUARDS:
+- Wenn USER_TEXT von "Termin" / "Meldeversäumnis" handelt: Verwende ausschließlich Termin-bezogene Formulierungen (z.B. "den Termin wahrnehmen") und NICHT "Arbeit/Job/Arbeitgeber".
+- Wenn USER_TEXT "krank" + "Attest/Bescheinigung" enthält: Nenne diese Fakten kurz ("krankheitsbedingt", "ärztliche Bescheinigung liegt vor", "nicht rechtzeitig eingereicht") ohne zusätzliche erfundene Hintergründe.
+- WICHTIG: In Krank+Attest+Termin-Fällen keine Standard-Passagen zur "Anhörung" oder "§ 24 SGB X" verwenden, es sei denn USER_TEXT nennt ausdrücklich "Anhörung" oder "§ 24".
 
-RECHTLICHE PUNKTE:
-A) VERFAHRENSRECHT (SGB X):
-- <1-3 Bulletpoints; wenn nichts passt: "- Derzeit nicht abschließend möglich.">
-B) MATERIELL-RECHTLICH (SGB II):
-- <1-2 Bulletpoints; wenn nichts passt: "- Derzeit nicht abschließend möglich.">
-
-ANTRÄGE:
-- <2-5 neutrale Anträge ohne Gesetzesverweise>
+FORMAT:
+- 3 bis 6 Absätze, jeweils 2–4 Sätze.
+- Keine Überschriften, keine Bulletpoints.
 
 FACTS:
 Bescheid-Datum: {bescheid_datum}
@@ -1041,7 +1328,7 @@ USER_TEXT:
 CONTEXT:
 {(context or "").strip()}
 
-Gib ausschließlich den Text im vorgegebenen Format zurück.
+Gib ausschließlich den Text zurück.
 """
 
 
@@ -1050,8 +1337,9 @@ def _compose_letter_enforced_header(facts: Dict[str, Any], req_text: str, body: 
     jc_block = _fmt_jobcenter_block_strict(facts)
     date_line = _fmt_date_line(facts)
 
-    bescheid_datum = _safe_str(facts.get("bescheid_datum"))
-    subject = f"Betreff: Widerspruch gegen Bescheid vom {bescheid_datum}" if bescheid_datum else "Betreff: Widerspruch"
+    bescheid_raw = _safe_str(facts.get("bescheid_datum"))
+    bescheid_disp = _fmt_bescheid_date_display(bescheid_raw) if bescheid_raw else ""
+    subject = f"Betreff: Widerspruch gegen Bescheid vom {bescheid_disp}" if bescheid_disp else "Betreff: Widerspruch"
 
     name = " ".join([p for p in [_safe_str(facts.get("vorname")), _safe_str(facts.get("nachname"))] if p]).strip()
 
@@ -1060,15 +1348,15 @@ def _compose_letter_enforced_header(facts: Dict[str, Any], req_text: str, body: 
         parts.append(user_block)
         parts.append("")
 
-    parts.append(date_line)
-    parts.append("")
     parts.append(jc_block)
+    parts.append("")
+    parts.append(date_line)
     parts.append("")
     parts.append(subject)
     parts.append("")
     parts.append("Sehr geehrte Damen und Herren,")
     parts.append("")
-    parts.append(f"hiermit lege ich Widerspruch gegen den Bescheid{(' vom ' + bescheid_datum) if bescheid_datum else ''} ein.")
+    parts.append(f"hiermit lege ich Widerspruch gegen den Bescheid{(' vom ' + bescheid_disp) if bescheid_disp else ''} ein.")
     parts.append("")
     parts.append((body or "").strip())
     parts.append("")
@@ -1082,10 +1370,13 @@ def _compose_letter_enforced_header(facts: Dict[str, Any], req_text: str, body: 
             parts.append("")
             parts.append("Anlagen:")
             for a in anlagen:
-                parts.append(f"- {a}")
+                aa = re.sub(r"[.]+$", "", (a or "")).strip()
+                if aa:
+                    parts.append(f"- {aa}")
 
     out = "\n".join(parts)
     out = _sanitize_widerspruch_text(out)
+    out = _remove_klaeger_terms(out)
     return out.strip()
 
 
@@ -1104,7 +1395,7 @@ WICHTIG:
 - Du darfst KEINE neuen Abschnitte hinzufügen.
 - Du darfst KEINE Abschnitte entfernen.
 - Du darfst KEINE neuen Gesetzesverweise hinzufügen.
-- Du darfst nur Rechtschreibung, Grammatik, Zeichensetzung und Stil glätten.
+- Keine Überschriften, keine Listen, keine A)/B).
 - Gib ausschließlich den korrigierten Text zurück, ohne Kommentare.
 
 STYLE:
@@ -1117,22 +1408,75 @@ TEXT:
     return out.strip() if out else base_letter
 
 
+# -----------------------------
+# Retrieve query helpers
+# -----------------------------
+def _is_procedural_query(q: str) -> bool:
+    ql = (q or "").lower()
+    return any(k in ql for k in PROC_KEYWORDS)
+
+
+# -----------------------------
+# Quellen post-process helpers
+# -----------------------------
+def _extract_title_from_text(text: str) -> str:
+    t = (text or "").replace("\n", " ").strip()
+    if not t:
+        return ""
+    m = re.search(r"\b§\s*\d+[a-z]?\b.*?\bSGB\s*X\b\s+(.+?)(?:\(\s*1\s*\)|\(\s*2\s*\)|\(\s*3\s*\)|$)", t, flags=re.IGNORECASE)
+    if m:
+        return m.group(1).strip(" -:;,.")[:120]
+    m2 = re.search(r"\b§\s*\d+[a-z]?\b\s+(.+?)(?:\(\s*1\s*\)|\(\s*2\s*\)|\(\s*3\s*\)|$)", t, flags=re.IGNORECASE)
+    if m2:
+        title = m2.group(1).strip(" -:;,.")
+        title = re.sub(r"^SGB\s*X\s+", "", title, flags=re.IGNORECASE).strip()
+        return title[:120]
+    return ""
+
+def _build_quellen_unique(items, max_cites: int = 8):
+    best = {}
+    for it in items or []:
+        law = (it.get("law") or "").strip()
+        par = (it.get("paragraph") or "").strip()
+        if not law and not par:
+            continue
+        key = (law, par)
+        if key not in best or float(it.get("distance", 999)) < float(best[key].get("distance", 999)):
+            best[key] = it
+    ranked = sorted(best.values(), key=lambda x: float(x.get("distance", 999)))
+    out = []
+    for it in ranked[:max_cites]:
+        out.append({
+            "law": it.get("law", ""),
+            "paragraph": it.get("paragraph", ""),
+            "title": _extract_title_from_text(it.get("text", "")),
+            "source_file": it.get("source_file", ""),
+            "distance": it.get("distance", None),
+        })
+    return out
+
+
+# -----------------------------
+# Generator
+# -----------------------------
 def _generate_widerspruch_letter(facts: Dict[str, Any], req_text: str, k: int, style: str, include_anlagen: bool):
+    facts = _hydrate_jobcenter_from_db(facts or {})
+
     bescheid_datum = _safe_str(facts.get("bescheid_datum"))
-    query = f"Widerspruch Jobcenter Bescheid {bescheid_datum}. Anhörung Akteneinsicht Frist Zustellung Verwaltungsakt Begründung. {req_text[:600]}"
-    items = _retrieve(query, k=max(3, min(MAX_K, int(k or 6))), require_absatz=True)
+    query = f"Widerspruch Jobcenter Bescheid {bescheid_datum}. Akteneinsicht Zustellung Verwaltungsakt Begründung Minderung Terminversäumnis. {req_text[:600]}"
+    items = _retrieve(query, k=max(2, min(MAX_K, int(k or DEFAULT_K))), require_absatz=True)
     context = _build_context(items)
 
     body = _call_ollama(_widerspruch_body_prompt(context=context, facts=facts, req_text=req_text)).strip()
     if not body:
         raise RuntimeError("LLM returned empty body")
+
     body = _sanitize_widerspruch_text(body)
-    body = _enforce_body_structure(body)
+    body = _enforce_official_no_lists(body)
 
     letter = _compose_letter_enforced_header(facts=facts, req_text=req_text, body=body, include_anlagen=include_anlagen)
     letter = _sanitize_widerspruch_text(letter)
 
-    # 1) Strict citations: only those in retrieved context
     if STRICT_CITATIONS:
         allowed = _allowed_citations_from_items(items)
         used = _extract_citations(letter)
@@ -1150,7 +1494,6 @@ def _generate_widerspruch_letter(facts: Dict[str, Any], req_text: str, k: int, s
             if illegal:
                 letter = _repair_remove_illegal_citations(letter, illegal)
 
-    # 2) NO-STRONG-CLAIMS
     if NO_STRONG_CLAIMS:
         flags = _find_strong_claims(letter)
         if flags:
@@ -1164,11 +1507,31 @@ def _generate_widerspruch_letter(facts: Dict[str, Any], req_text: str, k: int, s
             if flags:
                 letter = _hard_soften_strong_claims(letter)
 
-    # 3) Style polish
     letter = _polish_with_ollama(letter, style=style)
     letter = _sanitize_widerspruch_text(letter)
+    letter = _remove_klaeger_terms(letter)
 
-    # 4) Re-run guards after polish
+    # Split Anlagen to process body separately
+    parts = letter.split("\nAnlagen:\n", 1)
+    head_part = _enforce_official_no_lists(parts[0])
+
+    # PATCH: remove Anhörung/§24 paragraph for Krank+Attest Termin cases (unless user asked)
+    head_part = _guard_remove_anhörung_para_for_krank_attest(head_part, req_text=req_text)
+    head_part = _sanitize_widerspruch_text(head_part)
+
+    # Enforce final Bitte paragraph (including Aufhebung+Neuberechnung)
+    head_part = _dedupe_and_fix_bitte_paragraphs(head_part, req_text=req_text)
+
+    if len(parts) == 2:
+        letter = head_part + "\n\nAnlagen:\n" + parts[1].strip()
+    else:
+        letter = head_part
+
+    # PATCH: remove work/job hallucinations for Termin/Krank cases
+    letter = _guard_remove_work_context_if_not_in_user_text(letter, req_text=req_text)
+    letter = _sanitize_widerspruch_text(letter)
+
+    # Re-check illegal citations after edits
     if STRICT_CITATIONS:
         allowed = _allowed_citations_from_items(items)
         used = _extract_citations(letter)
@@ -1176,17 +1539,14 @@ def _generate_widerspruch_letter(facts: Dict[str, Any], req_text: str, k: int, s
         if illegal:
             letter = _repair_remove_illegal_citations(letter, illegal)
 
+    # Re-check strong claims
     if NO_STRONG_CLAIMS:
         flags = _find_strong_claims(letter)
         if flags:
             letter = _hard_soften_strong_claims(letter)
 
-    # 5) FINAL: ANTRÄGE whitelist guard
-    m = re.search(r"ANTRÄGE:\s*(.*)$", letter, flags=re.IGNORECASE | re.DOTALL)
-    if m:
-        antraege_tail = m.group(1)
-        if ANTRAEGE_BANNED_TERMS_RX.search(antraege_tail) or re.search(r"§\s*\d+", antraege_tail):
-            letter = _replace_antraege_with_safe_defaults(letter, req_text=req_text)
+    letter = _sanitize_widerspruch_text(letter)
+    letter = _remove_klaeger_terms(letter)
 
     return letter, items, (context if context else None)
 
@@ -1276,47 +1636,6 @@ def _make_preview(text: str) -> str:
 
 
 # -----------------------------
-# Quellen output
-# -----------------------------
-def _extract_title_from_text(text: str) -> str:
-    t = (text or "").replace("\n", " ").strip()
-    if not t:
-        return ""
-    m = re.search(r"\b§\s*\d+[a-z]?\b.*?\bSGB\s*X\b\s+(.+?)(?:\(\s*1\s*\)|\(\s*2\s*\)|\(\s*3\s*\)|$)", t, flags=re.IGNORECASE)
-    if m:
-        return m.group(1).strip(" -:;,.")[:120]
-    m2 = re.search(r"\b§\s*\d+[a-z]?\b\s+(.+?)(?:\(\s*1\s*\)|\(\s*2\s*\)|\(\s*3\s*\)|$)", t, flags=re.IGNORECASE)
-    if m2:
-        title = m2.group(1).strip(" -:;,.")
-        title = re.sub(r"^SGB\s*X\s+", "", title, flags=re.IGNORECASE).strip()
-        return title[:120]
-    return ""
-
-
-def _build_quellen_unique(items, max_cites: int = 8):
-    best = {}
-    for it in items or []:
-        law = (it.get("law") or "").strip()
-        par = (it.get("paragraph") or "").strip()
-        if not law and not par:
-            continue
-        key = (law, par)
-        if key not in best or float(it.get("distance", 999)) < float(best[key].get("distance", 999)):
-            best[key] = it
-    ranked = sorted(best.values(), key=lambda x: float(x.get("distance", 999)))
-    out = []
-    for it in ranked[:max_cites]:
-        out.append({
-            "law": it.get("law", ""),
-            "paragraph": it.get("paragraph", ""),
-            "title": _extract_title_from_text(it.get("text", "")),
-            "source_file": it.get("source_file", ""),
-            "distance": it.get("distance", None),
-        })
-    return out
-
-
-# -----------------------------
 # Routes
 # -----------------------------
 @app.get("/")
@@ -1398,6 +1717,7 @@ def validate_widerspruch(req: ValidateRequest):
 @app.post("/widerspruch/fix")
 def fix_widerspruch(req: ValidateRequest):
     fixed = _sanitize_widerspruch_text(req.text)
+    fixed = _remove_klaeger_terms(fixed)
     v = _validate_text(fixed)
     return {"ok": v["ok"], "fixed_text": fixed, "validation": v}
 
@@ -1417,8 +1737,8 @@ def widerspruch_pdf(req: PdfRequest):
 
 @app.post("/widerspruch")
 def widerspruch(req: WiderspruchRequest):
-    facts = req.facts or {}
-    k = max(1, min(MAX_K, int(req.k or 6)))
+    facts = _hydrate_jobcenter_from_db(req.facts or {})
+    k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
     style = (req.style or "standard").lower().strip()
     req_text = extract_user_text(req)
 
@@ -1447,8 +1767,8 @@ def widerspruch_workflow(req: WiderspruchWorkflowRequest):
     if not is_preview:
         _consume_use_or_402(uid)
 
-    facts = req.facts or {}
-    k = max(1, min(MAX_K, int(req.k or 6)))
+    facts = _hydrate_jobcenter_from_db(req.facts or {})
+    k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
     style = (req.style or "standard").lower().strip()
     req_text = extract_user_text(req)
 
@@ -1499,22 +1819,18 @@ def widerspruch_workflow(req: WiderspruchWorkflowRequest):
 
 
 # -----------------------------
-# Tester endpoints (new)
+# Tester endpoints
 # -----------------------------
 @app.post("/t/{token}/widerspruch/workflow")
 def tester_widerspruch_workflow(token: str, req: WiderspruchWorkflowRequest):
-    # must be enabled
     if not _tester_enabled():
         raise HTTPException(404, "Tester access not enabled")
 
-    # consume on generation (not on UI open)
     _tester_consume_or_403(token)
-
-    # Force full output for testers
     req.preview = False
 
-    facts = req.facts or {}
-    k = max(1, min(MAX_K, int(req.k or 6)))
+    facts = _hydrate_jobcenter_from_db(req.facts or {})
+    k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
     style = (req.style or "standard").lower().strip()
     req_text = extract_user_text(req)
 
@@ -1561,7 +1877,6 @@ def ui_tester(token: str):
     if not _tester_enabled():
         raise HTTPException(404, "Tester access not enabled")
 
-    # IMPORTANT: check only, do not consume
     _tester_check_or_403(token)
 
     html = f"""<!doctype html>
@@ -1576,7 +1891,7 @@ def ui_tester(token: str):
     .col {{ flex: 1; min-width: 280px; }}
     label {{ font-weight: 600; display: block; margin: 10px 0 6px; }}
     input, textarea, select {{ width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; }}
-    textarea {{ min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
+    textarea {{ min-height: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
     button {{ padding: 10px 14px; border-radius: 12px; border: 0; cursor: pointer; }}
     .btn {{ background: #111; color: #fff; }}
     .btn2 {{ background: #eee; }}
@@ -1584,13 +1899,16 @@ def ui_tester(token: str):
     pre {{ white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 12px; background: #fafafa; border: 1px solid #eee; }}
     .small {{ color: #666; font-size: 13px; }}
     .banner {{ background:#fff7ed; border:1px solid #fed7aa; padding:12px 14px; border-radius: 14px; }}
+    .hint {{ color:#666; font-size: 12px; margin-top:6px; }}
+    .inline {{ display:flex; gap:10px; align-items:center; }}
+    .inline input[type="checkbox"] {{ width:auto; }}
   </style>
 </head>
 <body>
   <h2>Tester UI — Widerspruch (SGB II / SGB X)</h2>
   <div class="banner">
     <div><strong>Interne Testphase</strong> — Volltext wird sofort erzeugt.</div>
-    <div class="small">Bitte nach Möglichkeit anonymisierte oder fiktive Fälle verwenden.</div>
+    <div class="small">Tipp: Jobcenter per Dropdown auswählen → Adresse wird automatisch gesetzt.</div>
   </div>
 
   <div class="card">
@@ -1616,16 +1934,17 @@ def ui_tester(token: str):
       </div>
       <div class="col">
         <label>Bescheid-Datum</label>
-        <input id="bescheid_datum" placeholder="2025-12-01" />
+        <input id="bescheid_datum" type="date" />
+        <div class="hint">Wird als YYYY-MM-DD an den Server gesendet; im Brief als „01. Dezember 2025“ formatiert.</div>
       </div>
       <div class="col">
-        <label>Jobcenter (Label)</label>
-        <input id="jobcenter_label" placeholder="Jobcenter Berlin Mitte" />
+        <label>Jobcenter</label>
+        <select id="jobcenter_select">
+          <option value="">— Bitte auswählen —</option>
+        </select>
+        <div class="hint">Adresse wird aus der Jobcenter-Liste ergänzt.</div>
       </div>
     </div>
-
-    <label>Bescheid-Text / Input</label>
-    <textarea id="bescheid_text" placeholder="Hier den Bescheidtext einfügen..."></textarea>
 
     <div class="row">
       <div class="col">
@@ -1644,10 +1963,20 @@ def ui_tester(token: str):
           <option value="short">short</option>
         </select>
       </div>
-      <div class="col">
-        <label>K (Retrieval)</label>
-        <input id="k" value="6" />
+      <div class="col"></div>
+    </div>
+
+    <label>Bescheid-Text / Input</label>
+    <textarea id="bescheid_text" placeholder="Hier den Bescheidtext einfügen..."></textarea>
+
+    <div class="card" style="margin-top:14px;">
+      <h3 style="margin:0 0 8px 0;">Anlagen</h3>
+      <div class="inline">
+        <input id="no_anlagen" type="checkbox" />
+        <label for="no_anlagen" style="margin:0;">Keine Anlagen (auch keine Kopie des Bescheids)</label>
       </div>
+      <div class="hint">Optional: Eine Anlage pro Zeile. Wenn leer, wird standardmäßig „Kopie des Bescheids“ eingefügt (außer Checkbox ist aktiv).</div>
+      <textarea id="anlagen" placeholder="(optional) Anlage 1&#10;Anlage 2"></textarea>
     </div>
 
     <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
@@ -1665,24 +1994,51 @@ def ui_tester(token: str):
 <script>
 const TOKEN = "{_escape_html(token)}";
 
+function parseAnlagenLines() {{
+  const raw = document.getElementById("anlagen").value || "";
+  const lines = raw.split(/\\r?\\n/).map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for (const l of lines) {{
+    const k = l.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(l);
+  }}
+  return out;
+}}
+
 function buildPayload() {{
+  const jcSel = document.getElementById("jobcenter_select");
+  const jcId = (jcSel.value || "").trim();
+  const jcLabel = jcSel.options[jcSel.selectedIndex]?.text || "";
+
   const facts = {{
     vorname: document.getElementById("vorname").value || "",
     nachname: document.getElementById("nachname").value || "",
     user_city: document.getElementById("user_city").value || "",
     kunden_nummer: document.getElementById("kunden_nummer").value || "",
-    bescheid_datum: document.getElementById("bescheid_datum").value || "",
-    jobcenter_label: document.getElementById("jobcenter_label").value || "",
+    bescheid_datum: (document.getElementById("bescheid_datum").value || "").trim(),
+    jobcenter_id: jcId,
+    jobcenter_label: jcLabel && jcId ? jcLabel : "",
     bescheid_text: document.getElementById("bescheid_text").value || ""
   }};
+
+  const noAnlagen = document.getElementById("no_anlagen").checked;
+  if (noAnlagen) {{
+    facts.no_anlagen = true;
+  }} else {{
+    const anlagen = parseAnlagenLines();
+    if (anlagen.length) facts.anlagen = anlagen;
+  }}
+
   const format = document.getElementById("format").value;
   const style = document.getElementById("style").value;
-  const k = parseInt(document.getElementById("k").value || "6", 10);
 
   return {{
     facts,
     text: facts.bescheid_text,
-    k,
+    k: 3,
     format,
     style,
     preview: false
@@ -1733,17 +2089,38 @@ async function run() {{
   }}
 }}
 
+async function loadJobcenters() {{
+  try {{
+    const res = await fetch("/jobcenters");
+    if (!res.ok) return;
+    const data = await res.json();
+    const items = (data.items || []);
+    const sel = document.getElementById("jobcenter_select");
+    while (sel.options.length > 1) sel.remove(1);
+    for (const jc of items) {{
+      const opt = document.createElement("option");
+      opt.value = jc.id;
+      opt.textContent = jc.label;
+      sel.appendChild(opt);
+    }}
+  }} catch (_) {{}}
+}}
+
 document.getElementById("btn").addEventListener("click", run);
+
 document.getElementById("btnFill").addEventListener("click", () => {{
-  document.getElementById("vorname").value = "Max";
-  document.getElementById("nachname").value = "Mustermann";
+  document.getElementById("vorname").value = "Broke";
+  document.getElementById("nachname").value = "Smoke";
   document.getElementById("user_city").value = "Berlin";
-  document.getElementById("kunden_nummer").value = "BG-123456";
-  document.getElementById("bescheid_datum").value = "2025-12-01";
-  document.getElementById("jobcenter_label").value = "Jobcenter Berlin Mitte";
+  document.getElementById("kunden_nummer").value = "BG-745342";
+  document.getElementById("bescheid_datum").value = "2025-11-20";
   document.getElementById("bescheid_text").value =
-`Ich lege Widerspruch ein. Der Bescheid ist aus meiner Sicht fehlerhaft. Bitte prüfen Sie die Entscheidung erneut.`;
+`Ich lege Widerspruch gegen den Bescheid ein. Kürzung 10% wegen nicht Erscheinen zum Termin am 01.11.2025. Ich war krank. Ärztliches Attest liegt vor, wurde aber versehentlich nicht rechtzeitig eingereicht.`;
+  document.getElementById("no_anlagen").checked = false;
+  document.getElementById("anlagen").value = "Ärztliches Attest";
 }});
+
+loadJobcenters();
 </script>
 </body>
 </html>"""
@@ -1804,7 +2181,6 @@ async def stripe_webhook(request: Request):
     _require_stripe_config()
     payload = await request.body()
 
-    # ✅ fix: read both header variants
     sig_header = (request.headers.get("Stripe-Signature") or request.headers.get("stripe-signature") or "")
     whsec = _stripe_webhook_secret()
 
@@ -1872,12 +2248,6 @@ def me(user_id: str):
 @app.get("/health")
 def health():
     return {"ok": True, "collection": COLLECTION, "chunks": col.count()}
-
-
-@app.post("/debug/write-test")
-def debug_write_test():
-    _set_user_access(user_id="debug_user", days=1)
-    return {"ok": True}
 
 
 @app.exception_handler(Exception)
