@@ -1,1 +1,6 @@
 .env
+data/tester_tokens.json
+data/subscriptions.json
+data/stripe_events.json
+data/jobcenter_de.json
+data/chunks.json

@@ -1,26 +1,22 @@
 # serve.py — SGB II + SGB X RAG Widerspruch API (strict, no-strong-claims, no made-up facts)
-# FIXED:
-# - No duplicate standalone user_city in sender block (city appears only in date line unless address/plz exists)
-# - Body format enforced (KURZER SACHVERHALT / RECHTLICHE PUNKTE A+B / ANTRÄGE) with bullets
-# - STRICT_CITATIONS: cite §§ only if present in retrieved context
-# - NO-STRONG-CLAIMS: removes/softens strong legal conclusions
-# - Greeting mandatory
-# - Addressat only from facts
-# - Markdown headings removed
-# - NEW: ANTRÄGE whitelist guard (no §§, no Heilung/Wiedereinsetzung/etc.; if violated -> replace with safe defaults)
+# Based on your working version + minimal improvements + tester-link access
 
 import os
 import re
 import json
 import traceback
 import requests
+import base64
+import hashlib
+import hmac
+import secrets
 
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List, Literal
 from io import BytesIO
 
 from fastapi import FastAPI, Query, HTTPException, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -86,6 +82,16 @@ ANTRAEGE_BANNED_TERMS_RX = re.compile(
     r"\b(heilung|wiedereinsetzung|nichtig|nichtigkeit|ungültig|unwirksam|offensichtlich|schwerwiegend)\b",
     re.IGNORECASE
 )
+
+# -----------------------------
+# Tester links (new)
+# -----------------------------
+TESTER_SECRET = (os.getenv("TESTER_SECRET") or "").strip()  # set to enable tester access
+TESTER_TTL_DAYS = int(os.getenv("TESTER_TTL_DAYS") or "14")
+TESTER_MAX_USES = int(os.getenv("TESTER_MAX_USES") or "30")
+ADMIN_SECRET = (os.getenv("ADMIN_SECRET") or "").strip()
+
+TESTER_DB = os.path.join("data", "tester_tokens.json")
 
 
 # -----------------------------
@@ -163,8 +169,13 @@ def _stripe_price_id() -> str:
 def _require_stripe_config():
     if stripe is None:
         raise HTTPException(500, "Stripe not installed. pip install stripe")
-    if not stripe.api_key:
+
+    # ✅ fix: ensure api_key set from env
+    sk = _stripe_secret_key()
+    if not sk:
         raise HTTPException(500, "Missing Stripe secret key for current mode")
+    stripe.api_key = sk
+
     if not _stripe_webhook_secret():
         raise HTTPException(500, "Missing Stripe webhook secret for current mode")
     if not _stripe_price_id():
@@ -290,6 +301,113 @@ def _consume_use_or_402(user_id: str):
     db[user_id] = rec
     _save_subs(db)
     return rec
+
+
+# -----------------------------
+# Tester link helpers (new)
+# -----------------------------
+def _tester_enabled() -> bool:
+    return bool(TESTER_SECRET)
+
+
+def _b64url_encode(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode((s + pad).encode("utf-8"))
+
+
+def _token_id(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+
+
+def _load_testers() -> dict:
+    return _load_json(TESTER_DB, {})
+
+
+def _save_testers(db: dict):
+    _save_json(TESTER_DB, db)
+
+
+def _mint_tester_token(email: str, days: int = None) -> str:
+    if not _tester_enabled():
+        raise RuntimeError("TESTER_SECRET is not set")
+    days = int(days or TESTER_TTL_DAYS)
+    exp = _now_utc() + timedelta(days=days)
+    payload = {
+        "email": (email or "").strip().lower(),
+        "exp": exp.isoformat().replace("+00:00", "Z"),
+        "nonce": secrets.token_urlsafe(8),
+    }
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    sig = hmac.new(TESTER_SECRET.encode("utf-8"), raw, hashlib.sha256).digest()
+    return f"{_b64url_encode(raw)}.{_b64url_encode(sig)}"
+
+
+def _verify_tester_token(token: str) -> Optional[dict]:
+    if not _tester_enabled():
+        return None
+    try:
+        parts = (token or "").split(".")
+        if len(parts) != 2:
+            return None
+        raw = _b64url_decode(parts[0])
+        sig = _b64url_decode(parts[1])
+        expected = hmac.new(TESTER_SECRET.encode("utf-8"), raw, hashlib.sha256).digest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        payload = json.loads(raw.decode("utf-8"))
+        exp_raw = (payload.get("exp") or "").replace("Z", "+00:00")
+        exp_dt = datetime.fromisoformat(exp_raw)
+        if exp_dt <= _now_utc():
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def _tester_check_or_403(token: str) -> dict:
+    payload = _verify_tester_token(token)
+    if not payload:
+        raise HTTPException(403, "Invalid or expired tester link")
+    return payload
+
+
+def _tester_consume_or_403(token: str) -> dict:
+    payload = _tester_check_or_403(token)
+
+    tid = _token_id(token)
+    db = _load_testers()
+    rec = db.get(tid) or {}
+    uses = int(rec.get("uses") or 0)
+    max_uses = int(rec.get("max_uses") or TESTER_MAX_USES)
+
+    if uses >= max_uses:
+        raise HTTPException(403, "Tester link usage limit reached")
+
+    rec.update({
+        "uses": uses + 1,
+        "max_uses": max_uses,
+        "email": payload.get("email"),
+        "exp": payload.get("exp"),
+        "last_used_at": _now_utc().isoformat().replace("+00:00", "Z"),
+    })
+    db[tid] = rec
+    _save_testers(db)
+    return payload
+
+
+def _escape_html(s: str) -> str:
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
 
 
 # -----------------------------
@@ -1380,6 +1498,289 @@ def widerspruch_workflow(req: WiderspruchWorkflowRequest):
     }
 
 
+# -----------------------------
+# Tester endpoints (new)
+# -----------------------------
+@app.post("/t/{token}/widerspruch/workflow")
+def tester_widerspruch_workflow(token: str, req: WiderspruchWorkflowRequest):
+    # must be enabled
+    if not _tester_enabled():
+        raise HTTPException(404, "Tester access not enabled")
+
+    # consume on generation (not on UI open)
+    _tester_consume_or_403(token)
+
+    # Force full output for testers
+    req.preview = False
+
+    facts = req.facts or {}
+    k = max(1, min(MAX_K, int(req.k or 6)))
+    style = (req.style or "standard").lower().strip()
+    req_text = extract_user_text(req)
+
+    letter, items, context = _generate_widerspruch_letter(
+        facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
+    )
+
+    validation = _validate_text(letter)
+    fmt = (req.format or "txt").lower().strip()
+
+    if fmt == "txt":
+        out_name = (req.filename or "widerspruch.txt").strip()
+        if not out_name.lower().endswith(".txt"):
+            out_name += ".txt"
+        return Response(
+            content=letter.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{out_name}"'}
+        )
+
+    if fmt == "pdf":
+        pdf_bytes = _text_to_pdf_bytes(letter)
+        out_name = (req.filename or "widerspruch.pdf").strip()
+        if not out_name.lower().endswith(".pdf"):
+            out_name += ".pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{out_name}"'}
+        )
+
+    quellen = _build_quellen_unique(items, max_cites=8) if req.include_quellen else []
+    return {
+        "ok": bool(validation.get("ok")),
+        "text": letter,
+        "validation": validation,
+        "quellen": quellen,
+        "context": context if req.include_context else None
+    }
+
+
+@app.get("/tester/ui/{token}", response_class=HTMLResponse)
+def ui_tester(token: str):
+    if not _tester_enabled():
+        raise HTTPException(404, "Tester access not enabled")
+
+    # IMPORTANT: check only, do not consume
+    _tester_check_or_403(token)
+
+    html = f"""<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tester UI — Widerspruch</title>
+  <style>
+    body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; max-width: 980px; }}
+    .row {{ display: flex; gap: 16px; flex-wrap: wrap; }}
+    .col {{ flex: 1; min-width: 280px; }}
+    label {{ font-weight: 600; display: block; margin: 10px 0 6px; }}
+    input, textarea, select {{ width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; }}
+    textarea {{ min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
+    button {{ padding: 10px 14px; border-radius: 12px; border: 0; cursor: pointer; }}
+    .btn {{ background: #111; color: #fff; }}
+    .btn2 {{ background: #eee; }}
+    .card {{ border: 1px solid #e6e6e6; border-radius: 16px; padding: 16px; margin-top: 16px; }}
+    pre {{ white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 12px; background: #fafafa; border: 1px solid #eee; }}
+    .small {{ color: #666; font-size: 13px; }}
+    .banner {{ background:#fff7ed; border:1px solid #fed7aa; padding:12px 14px; border-radius: 14px; }}
+  </style>
+</head>
+<body>
+  <h2>Tester UI — Widerspruch (SGB II / SGB X)</h2>
+  <div class="banner">
+    <div><strong>Interne Testphase</strong> — Volltext wird sofort erzeugt.</div>
+    <div class="small">Bitte nach Möglichkeit anonymisierte oder fiktive Fälle verwenden.</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div class="col">
+        <label>Vorname</label>
+        <input id="vorname" placeholder="Max" />
+      </div>
+      <div class="col">
+        <label>Nachname</label>
+        <input id="nachname" placeholder="Mustermann" />
+      </div>
+      <div class="col">
+        <label>Ort (user_city)</label>
+        <input id="user_city" placeholder="Berlin" value="Berlin"/>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>BG/Kundennummer</label>
+        <input id="kunden_nummer" placeholder="BG-123456" />
+      </div>
+      <div class="col">
+        <label>Bescheid-Datum</label>
+        <input id="bescheid_datum" placeholder="2025-12-01" />
+      </div>
+      <div class="col">
+        <label>Jobcenter (Label)</label>
+        <input id="jobcenter_label" placeholder="Jobcenter Berlin Mitte" />
+      </div>
+    </div>
+
+    <label>Bescheid-Text / Input</label>
+    <textarea id="bescheid_text" placeholder="Hier den Bescheidtext einfügen..."></textarea>
+
+    <div class="row">
+      <div class="col">
+        <label>Ausgabeformat</label>
+        <select id="format">
+          <option value="json">JSON (Text im Feld)</option>
+          <option value="txt" selected>TXT Download</option>
+          <option value="pdf">PDF Download</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Stil</label>
+        <select id="style">
+          <option value="standard" selected>standard</option>
+          <option value="formal">formal</option>
+          <option value="short">short</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>K (Retrieval)</label>
+        <input id="k" value="6" />
+      </div>
+    </div>
+
+    <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+      <button class="btn" id="btn">Generate</button>
+      <button class="btn2" id="btnFill">Demo-Facts</button>
+      <span class="small" id="status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Result</h3>
+    <pre id="out">—</pre>
+  </div>
+
+<script>
+const TOKEN = "{_escape_html(token)}";
+
+function buildPayload() {{
+  const facts = {{
+    vorname: document.getElementById("vorname").value || "",
+    nachname: document.getElementById("nachname").value || "",
+    user_city: document.getElementById("user_city").value || "",
+    kunden_nummer: document.getElementById("kunden_nummer").value || "",
+    bescheid_datum: document.getElementById("bescheid_datum").value || "",
+    jobcenter_label: document.getElementById("jobcenter_label").value || "",
+    bescheid_text: document.getElementById("bescheid_text").value || ""
+  }};
+  const format = document.getElementById("format").value;
+  const style = document.getElementById("style").value;
+  const k = parseInt(document.getElementById("k").value || "6", 10);
+
+  return {{
+    facts,
+    text: facts.bescheid_text,
+    k,
+    format,
+    style,
+    preview: false
+  }};
+}}
+
+async function run() {{
+  const status = document.getElementById("status");
+  const out = document.getElementById("out");
+  status.textContent = "Generating...";
+  out.textContent = "—";
+
+  const payload = buildPayload();
+  const format = payload.format;
+
+  try {{
+    const url = `/t/${{encodeURIComponent(TOKEN)}}/widerspruch/workflow`;
+    const res = await fetch(url, {{
+      method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify(payload)
+    }});
+
+    if (!res.ok) {{
+      const txt = await res.text();
+      throw new Error(txt || `HTTP ${{res.status}}`);
+    }}
+
+    if (format === "txt" || format === "pdf") {{
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      const ext = format === "pdf" ? "pdf" : "txt";
+      a.href = URL.createObjectURL(blob);
+      a.download = `widerspruch.${{ext}}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      out.textContent = `Download gestartet: widerspruch.${{ext}}`;
+    }} else {{
+      const data = await res.json();
+      out.textContent = data.text || JSON.stringify(data, null, 2);
+    }}
+
+    status.textContent = "Done";
+  }} catch (e) {{
+    status.textContent = "Error";
+    out.textContent = String(e);
+  }}
+}}
+
+document.getElementById("btn").addEventListener("click", run);
+document.getElementById("btnFill").addEventListener("click", () => {{
+  document.getElementById("vorname").value = "Max";
+  document.getElementById("nachname").value = "Mustermann";
+  document.getElementById("user_city").value = "Berlin";
+  document.getElementById("kunden_nummer").value = "BG-123456";
+  document.getElementById("bescheid_datum").value = "2025-12-01";
+  document.getElementById("jobcenter_label").value = "Jobcenter Berlin Mitte";
+  document.getElementById("bescheid_text").value =
+`Ich lege Widerspruch ein. Der Bescheid ist aus meiner Sicht fehlerhaft. Bitte prüfen Sie die Entscheidung erneut.`;
+}});
+</script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+
+@app.post("/tester/mint")
+def tester_mint(request: Request, email: str, days: int = TESTER_TTL_DAYS, max_uses: int = TESTER_MAX_USES):
+    if not _tester_enabled():
+        raise HTTPException(400, "TESTER_SECRET is not set")
+
+    if not ADMIN_SECRET:
+        raise HTTPException(403, "ADMIN_SECRET is not set")
+
+    admin = (request.headers.get("X-Admin-Secret") or request.query_params.get("admin") or "").strip()
+    if admin != ADMIN_SECRET:
+        raise HTTPException(403, "Forbidden")
+
+    token = _mint_tester_token(email=email, days=days)
+    tid = _token_id(token)
+
+    db = _load_testers()
+    rec = db.get(tid) or {}
+    rec.update({"uses": int(rec.get("uses") or 0), "max_uses": int(max_uses)})
+    db[tid] = rec
+    _save_testers(db)
+
+    return {
+        "token": token,
+        "ui_url": f"{APP_URL}/tester/ui/{token}",
+        "workflow_url": f"{APP_URL}/t/{token}/widerspruch/workflow",
+        "token_id": tid,
+        "days": int(days),
+        "max_uses": int(max_uses),
+    }
+
+
 # --- Stripe endpoints (optional) ---
 @app.post("/billing/checkout")
 def billing_checkout(req: CheckoutRequest):
@@ -1402,7 +1803,9 @@ def billing_checkout(req: CheckoutRequest):
 async def stripe_webhook(request: Request):
     _require_stripe_config()
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
+
+    # ✅ fix: read both header variants
+    sig_header = (request.headers.get("Stripe-Signature") or request.headers.get("stripe-signature") or "")
     whsec = _stripe_webhook_secret()
 
     try:
@@ -1454,8 +1857,6 @@ async def stripe_webhook(request: Request):
         print("Webhook handler error:", repr(e), "event_type:", event_type)
 
     return {"ok": True}
-
-app.post("/t/{token}/widerspruch/workflow")
 
 
 @app.get("/me")
