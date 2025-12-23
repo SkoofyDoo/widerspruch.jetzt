@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Preise – Widerspruch Generator</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#0f172a;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --line:rgba(255,255,255,.12);
+      --line2:rgba(255,255,255,.08);
+      --accent:#6366f1;
+      --accent2:#8b5cf6;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --radius:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.35);
+      --shadow2:0 10px 26px rgba(0,0,0,.28);
+    }
+
+    *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:
+        radial-gradient(1200px 600px at 10% 0%, rgba(99,102,241,.25), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(34,197,94,.18), transparent 55%),
+        radial-gradient(900px 550px at 50% 110%, rgba(139,92,246,.14), transparent 60%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a{ color:inherit; }
+    .container{
+      max-width: 1120px;
+      margin: 22px auto 64px;
+      padding: 0 16px;
+    }
+
+    /* ---------- TOP BAR ---------- */
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(10px);
+      background: rgba(11,16,32,.55);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .topbar-inner{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 0;
+    }
+    .logo{
+      width: 36px; height: 36px;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(99,102,241,.95), rgba(99,102,241,.15)),
+        radial-gradient(circle at 70% 70%, rgba(34,197,94,.55), transparent 55%);
+      box-shadow: 0 10px 22px rgba(99,102,241,.20);
+      border: 1px solid rgba(255,255,255,.10);
+      flex:0 0 auto;
+    }
+    .brand h1{
+      margin:0;
+      font-size: 14px;
+      font-weight: 820;
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .brand small{
+      display:block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap: nowrap;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      text-decoration:none;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.05);
+      color: #e5e7eb;
+      font-weight: 780;
+      letter-spacing:.2px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.15);
+      transition: transform .08s ease, filter .15s ease, background .15s ease;
+      white-space: nowrap;
+    }
+    .btn:hover{ filter: brightness(1.08); }
+    .btn:active{ transform: translateY(1px); }
+
+    .btn.primary{
+      border-color: rgba(99,102,241,.28);
+      background: linear-gradient(180deg, rgba(99,102,241,.98), rgba(99,102,241,.72));
+      box-shadow: 0 14px 30px rgba(99,102,241,.22);
+    }
+
+    .btn .arrow{
+      width: 10px; height: 10px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      margin-left: 2px;
+    }
+
+    /* ---------- HERO ---------- */
+    .hero{
+      padding: 26px 0 18px;
+      text-align:center;
+    }
+    .hero h2{
+      margin: 14px 0 10px;
+      font-size: 34px;
+      letter-spacing: .2px;
+      font-weight: 880;
+    }
+    .subtitle{
+      margin: 0 auto;
+      max-width: 820px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    .pills{
+      margin-top: 16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      color: #d1d5db;
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .pill .dot{
+      width:8px;height:8px;border-radius:999px;background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(34,197,94,.15);
+    }
+
+    /* ---------- SWITCH ---------- */
+    .switch-wrap{
+      margin: 22px auto 18px;
+      display:flex;
+      justify-content:center;
+    }
+    .switch{
+      display:inline-flex;
+      gap: 6px;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      box-shadow: var(--shadow2);
+    }
+    .chip{
+      border:0;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: transparent;
+      color: #e5e7eb;
+      font-weight: 800;
+      cursor:pointer;
+      transition: background .15s ease, transform .08s ease;
+      white-space: nowrap;
+    }
+    .chip:active{ transform: translateY(1px); }
+    .chip.active{
+      background: linear-gradient(180deg, rgba(99,102,241,.95), rgba(99,102,241,.70));
+      box-shadow: 0 10px 25px rgba(99,102,241,.20);
+    }
+
+    /* ---------- PRICING GRID ---------- */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap: 14px;
+      position: relative;
+      overflow:hidden;
+      transition: transform .10s ease, filter .15s ease;
+    }
+    .card:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+
+    .card.highlight{
+      border: 2px solid rgba(99,102,241,.7);
+      box-shadow: 0 22px 60px rgba(99,102,241,.12), var(--shadow);
+    }
+    .tag{
+      position:absolute;
+      top: 14px;
+      right: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(99,102,241,.14);
+      color: #c7d2fe;
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing:.2px;
+    }
+
+    .plan-title{
+      font-size: 18px;
+      font-weight: 860;
+      margin: 0;
+      letter-spacing:.2px;
+    }
+    .plan-desc{
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+
+    .price{
+      font-size: 36px;
+      font-weight: 920;
+      margin: 10px 0 0;
+      letter-spacing:.2px;
+    }
+    .price span{
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    ul{
+      list-style:none;
+      padding:0;
+      margin: 10px 0 0;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    li{
+      display:flex;
+      gap: 10px;
+      font-size: 14px;
+      line-height: 1.4;
+      color: #e5e7eb;
+    }
+    .check{
+      color: var(--ok);
+      font-weight: 1000;
+      flex: 0 0 auto;
+    }
+
+    .card .cta{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .cta .btn{
+      width:100%;
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .btn.secondary{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: none;
+    }
+
+    .mini{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 2px;
+    }
+
+    /* ---------- PROOF + FAQ ---------- */
+    .split{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+      margin-top: 26px;
+    }
+    @media (max-width: 980px){
+      .split{ grid-template-columns: 1fr; }
+    }
+
+    .panel{
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow2);
+      padding: 18px;
+    }
+    .panel h3{
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 880;
+      letter-spacing:.2px;
+      color:#c7d2fe;
+    }
+    .panel p{
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 13px;
+    }
+    .faq{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    details{
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      background: rgba(255,255,255,.02);
+      padding: 12px 12px;
+    }
+    summary{
+      cursor:pointer;
+      font-weight: 850;
+      font-size: 13px;
+      color: #e5e7eb;
+    }
+    details p{
+      margin: 10px 2px 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .note{
+      text-align:center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 26px;
+      line-height: 1.6;
+      max-width: 900px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+
+    .legal{
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px dashed rgba(255,255,255,.14);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      max-width: 980px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sticky top bar -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>Widerspruch Generator</h1>
+          <small>Preise & Nutzung</small>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <a class="btn" href="/ui/" title="Zurück zum Generator">
+          <span class="arrow"></span>
+          Zurück
+        </a>
+        <a class="btn primary" href="/ui/" title="Jetzt einen Entwurf erstellen">
+          Jetzt erstellen
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="hero">
+      <h2>Preise, die sich sofort lohnen.</h2>
+      <p class="subtitle">
+        Du bekommst einen klar strukturierten Entwurf im Amtsstil – schneller, ruhiger, sauberer.
+        Ohne Abo für Privatpersonen. Monatlich kündbar für Beratungsstellen.
+      </p>
+
+      <div class="pills">
+        <span class="pill"><span class="dot"></span> TXT / PDF Export</span>
+        <span class="pill">Kontext (Top-K) & Regeln</span>
+        <span class="pill">Kein Account nötig (MVP)</span>
+      </div>
+
+      <div class="switch-wrap">
+        <div class="switch" role="tablist" aria-label="Zielgruppe">
+          <button id="chipPrivat" class="chip active" type="button">Privat</button>
+          <button id="chipB2b" class="chip" type="button">Beratung / Verein</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" id="pricingGrid">
+      <!-- B2C -->
+      <div class="card" data-segment="privat">
+        <div>
+          <h3 class="plan-title">Einzel-Widerspruch</h3>
+          <div class="plan-desc">Für Privatpersonen – einmal zahlen, fertig.</div>
+
+          <div class="price">9,90 € <span>/ Dokument</span></div>
+
+          <ul>
+            <li><span class="check">✓</span> 1 fertiger Widerspruch (TXT / PDF)</li>
+            <li><span class="check">✓</span> Sachlicher Amtsstil + Struktur</li>
+            <li><span class="check">✓</span> Bezug auf relevante gesetzliche Grundlagen (ohne Gewähr)</li>
+            <li><span class="check">✓</span> Kein Abo, keine Bindung</li>
+          </ul>
+
+          <div class="mini">Ideal, wenn du schnell einen sauberen Entwurf brauchst.</div>
+        </div>
+
+        <div class="cta">
+          <a href="/ui/" class="btn primary">Jetzt erstellen</a>
+          <a href="/ui/" class="btn secondary">Erst testen (Beispiel)</a>
+        </div>
+      </div>
+
+      <!-- B2B -->
+      <div class="card highlight" data-segment="b2b">
+        <div class="tag">Empfohlen</div>
+        <div>
+          <h3 class="plan-title">Beratung & Vereine</h3>
+          <div class="plan-desc">Für Sozialberatungen, Initiativen, Kanzleien.</div>
+
+          <div class="price">99 € <span>/ Monat</span></div>
+
+          <ul>
+            <li><span class="check">✓</span> Bis zu 60 Widersprüche / Monat</li>
+            <li><span class="check">✓</span> Einheitliche Qualität & Stil</li>
+            <li><span class="check">✓</span> Spart Zeit pro Fall</li>
+            <li><span class="check">✓</span> Kündbar monatlich</li>
+          </ul>
+
+          <div class="mini">Du willst Volumen + stabile Qualität, ohne Chaos.</div>
+        </div>
+
+        <div class="cta">
+          <a href="mailto:kontakt@deine-domain.de" class="btn primary">Kontakt aufnehmen</a>
+          <a href="/ui/" class="btn secondary">Demo ansehen</a>
+        </div>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="card" data-segment="b2b">
+        <div>
+          <h3 class="plan-title">Individuell</h3>
+          <div class="plan-desc">Höheres Volumen oder Sonderanforderungen.</div>
+
+          <div class="price">auf Anfrage</div>
+
+          <ul>
+            <li><span class="check">✓</span> Höhere Limits</li>
+            <li><span class="check">✓</span> Individuelle Regeln / Prompt-Set</li>
+            <li><span class="check">✓</span> Integration (API / Workflow)</li>
+          </ul>
+
+          <div class="mini">Wenn du das als Tool in deinen Prozess einbaust.</div>
+        </div>
+
+        <div class="cta">
+          <a href="mailto:kontakt@deine-domain.de" class="btn secondary">Anfrage senden</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Was du bekommst</h3>
+        <p>
+          Einen strukturierten Entwurf, der die relevanten Fakten sauber wiedergibt und formal korrekt wirkt.
+          Du sparst Zeit, Nerven und vermeidest typische “Chaos-Widersprüche”.
+          <br><br>
+          Für Beratungsstellen: gleiche Qualität bei jedem Fall, weniger Copy-Paste, weniger Fehler.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h3>FAQ</h3>
+        <div class="faq">
+          <details>
+            <summary>Ist das Rechtsberatung?</summary>
+            <p>Nein. Das Tool erstellt Textentwürfe. Du prüfst Inhalt, Fristen und Einreichung selbst oder mit einer Beratungsstelle.</p>
+          </details>
+
+          <details>
+            <summary>Ersetzt das Tool eine fachliche Prüfung?</summary>
+            <p>Nein. Der Entwurf ersetzt keine fachliche Prüfung. Für Beratungsstellen gilt: Inhalt und Strategie müssen durch qualifiziertes Personal geprüft werden.</p>
+          </details>
+          
+
+          <details>
+            <summary>Was brauche ich mindestens?</summary>
+            <p>Den Bescheid/Sachverhalt als Text (oder kurze Beschreibung). Datum und Jobcenter helfen, sind aber nicht zwingend.</p>
+          </details>
+
+          <details>
+            <summary>Gibt es eine Erfolgsgarantie?</summary>
+            <p>Nein. Es wird kein Ausgang garantiert. Der Nutzen ist: schneller, sauberer Entwurf + bessere Struktur.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">
+      Alle Preise gemäß §19 UStG ohne Ausweis von Umsatzsteuer (Kleinunternehmerregelung).
+    </p>
+
+    <div class="legal">
+      <b>Rechtlicher Hinweis:</b><br>
+      Dieses Tool stellt <u>keine Rechtsberatung</u> dar.
+      Es handelt sich um eine KI-gestützte Textassistenz zur Erstellung von Entwürfen.
+      Die Verantwortung für Inhalt, Fristen und Einreichung liegt beim Nutzer.
+      Der Entwurf ersetzt keine individuelle Prüfung durch qualifiziertes Fachpersonal.
+      Es wird kein Erfolg oder Ausgang eines Verfahrens garantiert.
+    </div>
+  </div>
+
+  <script>
+    // Segment switch: show "Privat" first, but keep cards visible (UX),
+    // we just highlight the relevant ones and slightly dim others.
+    const chipPrivat = document.getElementById("chipPrivat");
+    const chipB2b = document.getElementById("chipB2b");
+    const cards = Array.from(document.querySelectorAll(".card"));
+
+    function setSegment(seg){
+      chipPrivat.classList.toggle("active", seg === "privat");
+      chipB2b.classList.toggle("active", seg === "b2b");
+
+      // subtle focus: dim non-target cards
+      cards.forEach(card => {
+        const isTarget = (card.dataset.segment === seg);
+        card.style.opacity = isTarget ? "1" : "0.72";
+        card.style.transform = isTarget ? "translateY(-1px)" : "none";
+      });
+    }
+
+    chipPrivat.addEventListener("click", () => setSegment("privat"));
+    chipB2b.addEventListener("click", () => setSegment("b2b"));
+
+    // default
+    setSegment("privat");
+  </script>
+</body>
+</html>

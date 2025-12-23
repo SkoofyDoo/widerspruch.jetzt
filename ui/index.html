@@ -1,0 +1,1588 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Widerspruch Generator</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#0f172a;
+      --panel2: rgba(255,255,255,.03);
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+
+      --line:rgba(255,255,255,.10);
+      --line2:rgba(255,255,255,.08);
+
+      --accent:#6366f1;
+      --accent2:#8b5cf6;
+
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+
+      --focus: rgba(99,102,241,.55);
+
+      --radius: 18px;
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --shadow2: 0 10px 26px rgba(0,0,0,.28);
+    }
+    *{ box-sizing:border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% 0%, rgba(99,102,241,.25), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(34,197,94,.18), transparent 55%),
+        radial-gradient(900px 500px at 50% 120%, rgba(139,92,246,.14), transparent 55%),
+        var(--bg);
+    }
+    a{ color: inherit; text-decoration: none; }
+
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      background: rgba(11,16,32,.55);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .topbar-inner{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .brand{ display:flex; align-items:center; gap:10px; min-width: 0; }
+    .logo{
+      width: 36px; height: 36px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(99,102,241,.98), rgba(99,102,241,.18)),
+        radial-gradient(circle at 70% 70%, rgba(34,197,94,.55), transparent 55%);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 12px 26px rgba(99,102,241,.18);
+      flex: 0 0 auto;
+    }
+    .brand-title{ min-width: 0; }
+    .brand-title b{
+      display:block;
+      font-size: 13px;
+      font-weight: 880;
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .brand-title span{
+      display:block;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: nowrap;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .dot{
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(34,197,94,.14);
+    }
+
+    .btn-link{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.05);
+      color: #e5e7eb;
+      font-weight: 820;
+      letter-spacing:.2px;
+      transition: transform .08s ease, filter .15s ease;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .btn-link:hover{ filter: brightness(1.08); }
+    .btn-link:active{ transform: translateY(1px); }
+    .btn-link[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    .spark{
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(99,102,241,.18);
+      flex: 0 0 auto;
+    }
+
+    .container{
+      max-width: 1180px;
+      margin: 22px auto 64px;
+      padding: 0 16px 86px;
+    }
+
+    .hero{
+      margin-top: 16px;
+      padding: 18px 0 8px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hero h1{
+      margin:0;
+      font-size: 28px;
+      font-weight: 920;
+      letter-spacing:.2px;
+    }
+    .hero p{
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 880px;
+      font-size: 14px;
+    }
+    .hero-badges{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .mini{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.02);
+      color: #d1d5db;
+      font-size: 12px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+    .mini .ok{
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(34,197,94,.14);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.20fr .58fr .82fr;
+      gap: 16px;
+      align-items:start;
+      margin-top: 14px;
+    }
+    @media (max-width: 1100px){
+      .grid{ grid-template-columns: 1fr .9fr; }
+      .preview-col{ grid-column: 1 / -1; }
+    }
+    @media (max-width: 760px){
+      .grid{ grid-template-columns: 1fr; }
+      .preview-col{ grid-column: auto; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid var(--line2);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-head{
+      padding: 16px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .card-head h2{
+      margin:0;
+      font-size: 14px;
+      font-weight: 860;
+      letter-spacing:.2px;
+    }
+    .card-head small{
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .card-body{ padding: 16px; }
+
+    .section{
+      margin: 0 0 16px;
+      padding: 0 0 16px;
+      border-bottom: 1px dashed rgba(255,255,255,.12);
+    }
+    .section:last-child{ border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+    .section h3{
+      margin: 0 0 10px;
+      font-size: 12px;
+      letter-spacing:.35px;
+      text-transform: uppercase;
+      color: #c7d2fe;
+      font-weight: 900;
+    }
+
+    .form-grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid-3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 760px){
+      .form-grid-2, .form-grid-3{ grid-template-columns: 1fr; }
+    }
+
+    .field{ display:flex; flex-direction:column; gap: 6px; }
+    label{
+      font-size: 12px;
+      color: #cbd5e1;
+      font-weight: 760;
+      letter-spacing:.2px;
+    }
+    input, select, textarea, button{ font: inherit; }
+
+    input, select, textarea{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(15,23,42,.74);
+      color: var(--text);
+      outline:none;
+      transition: box-shadow .15s ease, border-color .15s ease, filter .15s ease;
+    }
+    input::placeholder, textarea::placeholder{ color: rgba(229,231,235,.42); }
+    textarea{
+      min-height: 220px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(99,102,241,.75);
+      box-shadow: 0 0 0 4px var(--focus);
+    }
+    .help{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+    .invalid{
+      border-color: rgba(239,68,68,.75) !important;
+      box-shadow: 0 0 0 4px rgba(239,68,68,.18) !important;
+    }
+
+    .actions{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .btn{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-weight: 880;
+      cursor:pointer;
+      transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+      min-width: 240px;
+      letter-spacing:.2px;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(99,102,241,.98), rgba(99,102,241,.72));
+      border-color: rgba(99,102,241,.26);
+      color: white;
+      box-shadow: 0 16px 34px rgba(99,102,241,.18);
+    }
+    .btn.primary:hover{ filter: brightness(1.05); }
+
+    .btn.secondary{
+      background: rgba(255,255,255,.05);
+      color: #e5e7eb;
+    }
+    .btn.secondary:hover{ filter: brightness(1.06); }
+
+    .status{
+      margin-top: 10px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .status .pill2{
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 11px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.03);
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+    .status.ok .pill2{ border-color: rgba(34,197,94,.45); color:#bbf7d0; }
+    .status.err .pill2{ border-color: rgba(239,68,68,.5); color:#fecaca; }
+    .status.info .pill2{ border-color: rgba(245,158,11,.55); color:#fde68a; }
+    .status.warn .pill2{ border-color: rgba(245,158,11,.55); color:#fde68a; }
+
+    .sticky{ position: sticky; top: 84px; }
+    @media (max-width: 760px){ .sticky{ position: static; } }
+
+    .checklist{ display:flex; flex-direction:column; gap: 10px; }
+    .check{
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      padding: 12px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+    }
+    .check .icon{
+      width: 24px; height: 24px;
+      border-radius: 999px;
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 1000;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.02);
+      flex: 0 0 auto;
+    }
+    .check.ok .icon{ border-color: rgba(34,197,94,.55); color: #bbf7d0; background: rgba(34,197,94,.08); }
+    .check.bad .icon{ border-color: rgba(239,68,68,.55); color: #fecaca; background: rgba(239,68,68,.08); }
+    .check .text{ display:flex; flex-direction:column; gap: 2px; }
+    .check .text b{ font-size: 12px; font-weight: 900; }
+    .check .text span{ font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+    pre{
+      margin:0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(2,6,23,.62);
+      padding: 14px;
+      min-height: 260px;
+      line-height: 1.45;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+
+    .preview-locked{
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .preview-fade{
+      position: relative;
+      max-height: 320px;
+      overflow: hidden;
+    }
+    .preview-fade::after{
+      content:"";
+      position:absolute;
+      left:0; right:0; bottom:0;
+      height: 130px;
+      background: linear-gradient(to bottom, rgba(2,6,23,0), rgba(2,6,23,.96));
+      pointer-events:none;
+    }
+
+    .preview-actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .mini-btn{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      color: #e5e7eb;
+      padding: 9px 12px;
+      border-radius: 14px;
+      font-weight: 850;
+      cursor:pointer;
+      transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+    }
+    .mini-btn:hover{ filter: brightness(1.06); }
+    .mini-btn:active{ transform: translateY(1px); }
+    .mini-btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    details.advanced{
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      background: rgba(255,255,255,.02);
+      padding: 12px 12px;
+    }
+    details.advanced summary{
+      cursor:pointer;
+      font-weight: 920;
+      font-size: 12px;
+      letter-spacing:.3px;
+      color: #e5e7eb;
+      list-style: none;
+      user-select: none;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    details.advanced summary::-webkit-details-marker{ display:none; }
+    .caret{
+      width: 10px; height: 10px;
+      border-right: 2px solid rgba(229,231,235,.75);
+      border-bottom: 2px solid rgba(229,231,235,.75);
+      transform: rotate(-45deg);
+      transition: transform .15s ease;
+      flex: 0 0 auto;
+      opacity: .9;
+    }
+    details.advanced[open] .caret{ transform: rotate(45deg); }
+    .adv-body{ margin-top: 12px; }
+
+    .mobile-cta{
+      display:none;
+      position: fixed;
+      left: 0; right: 0;
+      bottom: 0;
+      padding: 10px 12px;
+      background: rgba(11,16,32,.70);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,.10);
+      z-index: 30;
+    }
+    .mobile-cta-inner{
+      max-width: 1180px;
+      margin: 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .mobile-cta .cta-text{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .mobile-cta .cta-text b{
+      color: #e5e7eb;
+      display:block;
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 2px;
+    }
+    .mobile-cta .cta-btn{
+      border: 1px solid rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(99,102,241,.98), rgba(99,102,241,.72));
+      color: white;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 920;
+      cursor:pointer;
+      box-shadow: 0 16px 34px rgba(99,102,241,.18);
+      white-space: nowrap;
+      transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+    }
+    .mobile-cta .cta-btn:active{ transform: translateY(1px); }
+    .mobile-cta .cta-btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    @media (max-width: 760px){
+      .container{ padding-bottom: 120px; }
+      .mobile-cta{ display:block; }
+      .sticky{ top: 0; }
+    }
+
+    .toast{
+      position: fixed;
+      top: 76px;
+      right: 16px;
+      z-index: 40;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: #e5e7eb;
+      box-shadow: var(--shadow2);
+      font-size: 12px;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity .18s ease, transform .18s ease;
+      pointer-events: none;
+      max-width: 320px;
+    }
+    .toast.show{ opacity: 1; transform: translateY(0); }
+
+    /* Paywall CTA */
+    .paywall-cta{
+      width: 100%;
+      margin-top: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+
+      border-radius: 16px;
+      border: 1px solid rgba(99,102,241,.35);
+      background: linear-gradient(180deg, rgba(99,102,241,.18), rgba(255,255,255,.03));
+      color: #e5e7eb;
+
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+
+      box-shadow: 0 16px 34px rgba(99,102,241,.12);
+      transition: transform .08s ease, filter .15s ease, border-color .15s ease;
+    }
+    .paywall-cta:hover{ filter: brightness(1.06); border-color: rgba(99,102,241,.55); }
+    .paywall-cta:active{ transform: translateY(1px); }
+    .paywall-cta[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    .paywall-cta .left{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .paywall-cta .badge{
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(99,102,241,.22);
+      border: 1px solid rgba(255,255,255,.12);
+      flex: 0 0 auto;
+    }
+
+    .paywall-cta .txt{ min-width: 0; }
+    .paywall-cta .title{
+      font-weight: 920;
+      letter-spacing:.2px;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .paywall-cta .sub{
+      margin-top: 2px;
+      color: rgba(229,231,235,.75);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .paywall-cta .right{
+      text-align:right;
+      flex: 0 0 auto;
+    }
+    .paywall-cta .price{
+      font-weight: 980;
+      font-size: 13px;
+    }
+    .paywall-cta .action{
+      margin-top: 2px;
+      font-size: 12px;
+      color: rgba(229,231,235,.82);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brand-title">
+          <b>Widerspruch Generator</b>
+          <span>Textentwurf in Amtsstil • TXT/PDF</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button id="btnBuy" class="btn-link primary" type="button">
+          <span class="spark"></span> Freischalten – 9,90 €
+        </button>
+
+        <span class="pill" title="Einmalig · 1 Entwurf · kein Abo">Einmalig · 1 Entwurf · kein Abo</span>
+
+        <a class="btn-link" href="/pricing" title="Preise & Tarife">
+          <span class="spark"></span>
+          Preise
+        </a>
+
+        <span class="pill" id="pillUser">User: <b style="color:#e5e7eb">-</b></span>
+        <span class="pill" id="pillAccess"><span class="dot"></span> Prüfe Zugang…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="hero">
+      <div>
+        <h1>Jobcenter kürzt dein Geld? Erstelle einen sauberen Widerspruch – in Minuten.</h1>
+        <p>
+          <b>So funktioniert es:</b>
+          1) Bescheid einfügen → 2) Vorschau ansehen → 3) Freischalten → 4) Download & senden
+        </p>
+        <p>
+          Füge den Bescheid oder eine kurze Beschreibung ein. Das Tool erstellt einen strukturierten Textentwurf
+          im Amtsstil (keine Rechtsberatung). Du prüfst Inhalt, Fristen und Einreichung selbst oder mit einer Beratungsstelle.
+        </p>
+
+        <div class="hero-badges">
+          <span class="mini"><span class="ok"></span> Klare Struktur</span>
+          <span class="mini">Sachlicher Behördenstil</span>
+          <span class="mini">Export als TXT/PDF</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="color:#9ca3af;font-size:13px;">
+      Viele Menschen empfinden Schreiben an das Jobcenter als belastend.
+      Dieses Tool hilft beim Formulieren – Sie behalten die Kontrolle.
+    </p>
+
+    <div class="grid">
+      <!-- FORM -->
+      <div class="card">
+        <div class="card-head">
+          <h2>Eingaben</h2>
+          <small>Pflicht: Bescheid/Sachverhalt</small>
+        </div>
+        <div class="card-body">
+
+          <div class="section">
+            <h3>Basisdaten</h3>
+            <div class="form-grid-2">
+              <div class="field">
+                <label for="bescheid_datum">Bescheid-Datum</label>
+                <input id="bescheid_datum" type="date" />
+              </div>
+              <div class="field">
+                <label for="zugang_datum">Zugang-Datum (optional)</label>
+                <input id="zugang_datum" type="date" />
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:12px;">
+              <label for="jobcenter">Jobcenter (optional)</label>
+              <select id="jobcenter">
+                <option value="">(lade ...)</option>
+              </select>
+              <div class="help">Wenn dein Jobcenter fehlt: „(anderes)“ wählen und im Text nennen.</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Empfohlen (verbessert den Entwurf)</h3>
+
+            <div class="form-grid-2">
+              <div class="field">
+                <label for="minderung">Kürzung / Minderung</label>
+                <select id="minderung">
+                  <option value="">(wenn bekannt)</option>
+                  <option value="10%">10%</option>
+                  <option value="20%">20%</option>
+                  <option value="30%">30%</option>
+                  <option value="ganz">Vollständige Kürzung</option>
+                </select>
+                <div class="help">Wenn du es weißt: erhöht die Genauigkeit deutlich.</div>
+              </div>
+
+              <div class="field">
+                <label for="grund">Grund (laut Bescheid)</label>
+                <select id="grund">
+                  <option value="">(wenn bekannt)</option>
+                  <option value="Meldeversäumnis">Meldeversäumnis</option>
+                  <option value="Pflichtverletzung">Pflichtverletzung</option>
+                  <option value="Terminversäumnis">Terminversäumnis</option>
+                  <option value="Eingliederungsvereinbarung">Eingliederungsvereinbarung</option>
+                  <option value="Sonstiges">Sonstiges</option>
+                </select>
+                <div class="help">Steht meist direkt im Bescheid (Begründung).</div>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:12px;">
+              <label for="kunden_nummer">BG-/Kundennummer (wenn vorhanden)</label>
+              <input id="kunden_nummer" type="text" placeholder="z.B. 01234567" />
+              <div class="help">Hilft beim korrekten Bezug im Schreiben. Wenn du unsicher bist: leer lassen.</div>
+            </div>
+
+            <details class="advanced" style="margin-top:12px;">
+              <summary>
+                Weitere Angaben (nur wenn du willst)
+                <span class="caret"></span>
+              </summary>
+              <div class="adv-body">
+                <div class="form-grid-2">
+                  <div class="field">
+                    <label for="vorname">Vorname (optional)</label>
+                    <input id="vorname" type="text" placeholder="z.B. Max" />
+                  </div>
+                  <div class="field">
+                    <label for="nachname">Nachname (optional)</label>
+                    <input id="nachname" type="text" placeholder="z.B. Mustermann" />
+                  </div>
+                </div>
+                <div class="help" style="margin-top:10px;">
+                  Name ist optional – du kannst ihn auch später im Text ergänzen.
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="section">
+            <h3>Pflichtfeld</h3>
+            <div class="field">
+              <label for="bescheid_text">Bescheid / Sachverhalt</label>
+              <textarea id="bescheid_text" placeholder="Füge hier den Inhalt des Bescheids oder den relevanten Sachverhalt ein. Tipp: Beschreibe kurz die Gründe für deinen Widerspruch (z. B. Krankheit, erfolgte Meldung, abgesagter Termin)."></textarea>
+              <div class="help">
+                Tipp: Kürzungsbetrag, Zeitraum, Begründung + Rechtsbehelfsbelehrung reichen oft.
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Ausgabe</h3>
+            <div class="form-grid-3">
+              <div class="field">
+                <label for="format">Format</label>
+                <select id="format">
+                  <option value="txt" selected>.txt</option>
+                  <option value="pdf">.pdf</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="include_quellen">Anhang vorhanden?</label>
+                <select id="include_quellen">
+                  <option value="false" selected>Nein</option>
+                  <option value="true">Ja</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="k">K (Qualität)</label>
+                <select id="k">
+                  <option value="4">4</option>
+                  <option value="6" selected>6</option>
+                  <option value="8">8</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="btnExample" class="btn secondary" type="button">Beispiel einfügen</button>
+              <button id="btnPreview" class="btn secondary" type="button" disabled>Vorschau anzeigen</button>
+              
+            </div>
+
+            <div class="help" style="margin-top:10px;">
+              Hinweis: Vorschau ist kostenlos. Vollständiger Download nach Freischaltung.
+              Es wird ein <b>Textentwurf</b> erstellt. Keine Rechtsberatung. Bitte Fakten & Fristen prüfen.
+            </div>
+
+            <div id="status" class="status info" style="display:flex;">
+              <span class="pill2">Info</span>
+              <span id="statusText">Füge Bescheid/Sachverhalt ein, dann kannst du eine Vorschau erstellen.</span>
+            </div>
+
+            <div class="help" style="margin-top:12px;">
+              Datenschutz: Bitte nur notwendige Daten einfügen. Name/Kundennummer sind optional.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CHECKS -->
+      <div class="card sticky">
+        <div class="card-head">
+          <h2>Qualitäts-Checks</h2>
+          <small>Live</small>
+        </div>
+        <div class="card-body">
+          <div class="checklist">
+            <div id="chkText" class="check bad">
+              <div class="icon">✕</div>
+              <div class="text">
+                <b>Text vorhanden</b>
+                <span>Mindestens ~20 Zeichen erforderlich.</span>
+              </div>
+            </div>
+
+            <div id="chkDates" class="check bad">
+              <div class="icon">✕</div>
+              <div class="text">
+                <b>Datum</b>
+                <span>Bescheid- oder Zugang-Datum wird empfohlen.</span>
+              </div>
+            </div>
+
+            <div id="chkJc" class="check bad">
+              <div class="icon">✕</div>
+              <div class="text">
+                <b>Jobcenter</b>
+                <span>Optional, verbessert aber die Formalität.</span>
+              </div>
+            </div>
+
+            <div id="chkReason" class="check bad">
+              <div class="icon">✕</div>
+              <div class="text">
+                <b>Grund / Minderung</b>
+                <span>Sehr empfohlen – steht meist im Bescheid.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="help" style="margin-top:12px;">
+            Ziel: minimale Eingaben, maximale Klarheit.
+          </div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="card preview-col">
+        <div class="card-head">
+          <h2>Vorschau</h2>
+          <small>Paywall-Preview</small>
+        </div>
+        <div class="card-body">
+          <pre id="preview" class="preview-locked preview-fade">(noch nichts)</pre>
+
+          <button id="paywallCta" class="paywall-cta" type="button" style="display:none;">
+            <div class="left">
+              <div class="badge">🔒</div>
+              <div class="txt">
+                <div class="title">Vollständiger Text nach Freischaltung</div>
+                <div class="sub">1 Entwurf · 9,90 € · kein Abo</div>
+              </div>
+            </div>
+            <div class="right">
+              <div class="price">9,90 €</div>
+              <div class="action">Jetzt freischalten →</div>
+            </div>
+          </button>
+          
+          <div>
+            <button id="btn" class="btn primary" type="button" disabled>Widerspruch herunterladen</button>
+          </div>
+         
+
+          <div id="nextSteps" class="status ok" style="display:none; margin-top:12px;">
+            <span class="pill2">Weiter</span>
+            <span>
+              <b>Nächste Schritte:</b>
+              1) Entwurf kurz prüfen & unterschreiben ·
+              2) ans Jobcenter senden (Post/Portal) ·
+              3) Kopie behalten
+            </span>
+          </div>
+
+          <div class="preview-actions">
+            <button id="btnCopy" class="mini-btn" type="button" disabled title="Aus Paywall-Gründen deaktiviert">Text kopieren</button>
+            <button id="btnClear" class="mini-btn" type="button">Felder leeren</button>
+          </div>
+
+          <div class="help" style="margin-top:10px;">
+            Hinweis: Vorschau ist nicht kopierbar. Nach Freischaltung startet Download automatisch.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile CTA -->
+  <div class="mobile-cta">
+    <div class="mobile-cta-inner">
+      <div class="cta-text">
+        <b>Schritt 1: Vorschau</b>
+        <span>Bescheidtext einfügen → Vorschau anzeigen.</span>
+      </div>
+      <button id="ctaMobile" class="cta-btn" type="button" disabled>Vorschau</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const apiBase = ""; // same origin
+
+    const btn = document.getElementById("btn");
+    const btnPreview = document.getElementById("btnPreview");
+    const btnExample = document.getElementById("btnExample");
+    const btnBuy = document.getElementById("btnBuy");
+
+    const statusEl = document.getElementById("status");
+    const statusText = document.getElementById("statusText");
+    const ctaMobile = document.getElementById("ctaMobile");
+
+    const btnCopy = document.getElementById("btnCopy");
+    const btnClear = document.getElementById("btnClear");
+    const toast = document.getElementById("toast");
+
+    const pillUser = document.getElementById("pillUser");
+    const pillAccess = document.getElementById("pillAccess");
+
+    const elText = document.getElementById("bescheid_text");
+    const elBescheid = document.getElementById("bescheid_datum");
+    const elZugang = document.getElementById("zugang_datum");
+    const elJc = document.getElementById("jobcenter");
+    const elGrund = document.getElementById("grund");
+    const elMind = document.getElementById("minderung");
+    const elK = document.getElementById("k");
+
+    const chkText = document.getElementById("chkText");
+    const chkDates = document.getElementById("chkDates");
+    const chkJc = document.getElementById("chkJc");
+    const chkReason = document.getElementById("chkReason");
+
+    const previewEl = document.getElementById("preview");
+    const paywallCta = document.getElementById("paywallCta");
+    const nextSteps = document.getElementById("nextSteps");
+
+    let isBusy = false;
+    let entitlement = { active:false, uses_left:0, access_until:null, mode:"test" };
+    let hasPreview = false;
+
+    function showToast(msg){
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1400);
+    }
+
+    function setStatus(type, text){
+      statusEl.classList.remove("ok","err","info","warn");
+      statusEl.classList.add(type);
+      statusEl.querySelector(".pill2").textContent =
+        type === "ok" ? "OK" : (type === "err" ? "ERROR" : (type === "warn" ? "Hinweis" : "Info"));
+      statusText.textContent = text;
+    }
+
+    function setCheck(el, ok, subtitleOk, subtitleBad){
+      el.classList.remove("ok","bad");
+      el.classList.add(ok ? "ok" : "bad");
+      el.querySelector(".icon").textContent = ok ? "✓" : "✕";
+      el.querySelector(".text span").textContent = ok ? subtitleOk : subtitleBad;
+    }
+
+    function markInvalid(inputEl, isInvalid){
+      if(!inputEl) return;
+      if(isInvalid) inputEl.classList.add("invalid");
+      else inputEl.classList.remove("invalid");
+    }
+
+    function getOrCreateUserId(){
+      
+      const url = new URL(window.location.href);
+      const qp = (url.searchParams.get("user_id") || "").trim();
+      if (qp){
+        localStorage.setItem("user_id", qp);
+        return qp;
+      }
+      let uid = (sessionStorage.getItem("user_id") || "").trim();
+      if (!uid){
+        uid = "u_" + Math.random().toString(36).slice(2, 10);
+        sessionStorage.setItem("user_id", uid);
+      }
+      return uid;
+    }
+
+    const USER_ID = getOrCreateUserId();
+    pillUser.innerHTML = `User: <b style="color:#e5e7eb">${USER_ID}</b>`;
+
+    // =========================
+    // Draft persistence (Stripe redirect wipe fix)
+    // =========================
+    const DRAFT_KEY = "wds_draft_v1_" + USER_ID;
+    let isHydrating = false;
+    let _draftLoaded = null;
+
+    function _draftState(){
+      return {
+        bescheid_text: (elText.value || "").trim(),
+        bescheid_datum: elBescheid.value || "",
+        zugang_datum: elZugang.value || "",
+        jobcenter: elJc.value || "",
+        grund: elGrund.value || "",
+        minderung: elMind.value || "",
+        kunden_nummer: (document.getElementById("kunden_nummer").value || "").trim(),
+        vorname: (document.getElementById("vorname").value || "").trim(),
+        nachname: (document.getElementById("nachname").value || "").trim(),
+        format: document.getElementById("format").value || "txt",
+        include_quellen: document.getElementById("include_quellen").value || "false",
+        k: elK.value || "6",
+        hasPreview: !!hasPreview,
+        previewText: previewEl.textContent || ""
+      };
+    }
+
+    function saveDraft(){
+      if (isHydrating) return;
+      try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(_draftState())); }catch(e){}
+    }
+
+    function readDraft(){
+      try{
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      }catch(e){
+        return null;
+      }
+    }
+
+    function applyDraft(st){
+      if (!st) return false;
+      isHydrating = true;
+
+      if (st.bescheid_text != null) elText.value = st.bescheid_text;
+      if (st.bescheid_datum != null) elBescheid.value = st.bescheid_datum;
+      if (st.zugang_datum != null) elZugang.value = st.zugang_datum;
+
+      // jobcenter applied later (after options loaded)
+      if (st.grund != null) elGrund.value = st.grund;
+      if (st.minderung != null) elMind.value = st.minderung;
+
+      document.getElementById("kunden_nummer").value = st.kunden_nummer || "";
+      document.getElementById("vorname").value = st.vorname || "";
+      document.getElementById("nachname").value = st.nachname || "";
+
+      document.getElementById("format").value = st.format || "txt";
+      document.getElementById("include_quellen").value = st.include_quellen || "false";
+      elK.value = st.k || "6";
+
+      hasPreview = !!st.hasPreview && (st.previewText || "").length > 0;
+      if (hasPreview) previewEl.textContent = st.previewText;
+
+      isHydrating = false;
+      return true;
+    }
+
+    function applyDraftJobcenter(st){
+      if (!st || !st.jobcenter) return;
+      elJc.value = st.jobcenter;
+      if (elJc.value !== st.jobcenter) elJc.value = "";
+    }
+
+    function clearDraft(){
+      try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+    }
+
+    // =========================
+    // Entitlement
+    // =========================
+    async function refreshEntitlement(){
+      try{
+        pillAccess.textContent = "Prüfe Zugang…";
+        const res = await fetch(`${apiBase}/me?user_id=${encodeURIComponent(USER_ID)}`);
+        const me = await res.json();
+        entitlement = me || entitlement;
+
+        const active = !!entitlement.active;
+        const uses = parseInt(entitlement.uses_left || 0, 10);
+
+        if (active && uses > 0){
+          pillAccess.innerHTML = `<span class="dot"></span> Zugang: aktiv • Credit: ${uses}`;
+        } else if (active && uses <= 0){
+          pillAccess.innerHTML = `<span class="dot" style="background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.14)"></span> Zugang aktiv • kein Credit`;
+        } else {
+          pillAccess.innerHTML = `<span class="dot" style="background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.14)"></span> Kein Zugang`;
+        }
+      } catch(e){
+        pillAccess.innerHTML = `<span class="dot" style="background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.14)"></span> Server offline?`;
+      }
+    }
+
+    // =========================
+    // UI logic
+    // =========================
+    function canPreviewNow(){
+      const textOk = (elText.value || "").trim().length >= 20;
+      return textOk && !isBusy;
+    }
+
+    function canDownloadNow(){
+      const textOk = (elText.value || "").trim().length >= 20;
+      const active = !!entitlement.active;
+      const uses = parseInt(entitlement.uses_left || 0, 10);
+      return textOk && active && uses > 0 && hasPreview && !isBusy;
+    }
+
+    function recomputeChecks(){
+      const textOk = (elText.value || "").trim().length >= 20;
+      const datesOk = !!(elBescheid.value || elZugang.value);
+      const jcOk = !!(elJc.value && elJc.value !== "");
+      const reasonOk = !!(elGrund?.value || elMind?.value);
+
+      setCheck(chkText, textOk, "OK: Text vorhanden.", "Text fehlt oder ist zu kurz.");
+      setCheck(chkDates, datesOk, "OK: Datum vorhanden.", "Empfohlen: Bescheid- oder Zugang-Datum.");
+      setCheck(chkJc, jcOk, "OK: Jobcenter gewählt.", "Optional, aber empfohlen.");
+      setCheck(chkReason, reasonOk, "OK: Zusatzinfos vorhanden.", "Sehr empfohlen – steht meist im Bescheid.");
+
+      markInvalid(elText, !textOk);
+
+      const enablePreview = canPreviewNow();
+      btnPreview.disabled = !enablePreview;
+      ctaMobile.disabled = !enablePreview;
+      ctaMobile.textContent = "Vorschau";
+
+      btn.disabled = !canDownloadNow();
+
+      btnCopy.disabled = true;
+
+      const active = !!entitlement.active;
+      const uses = parseInt(entitlement.uses_left || 0, 10);
+
+      if (paywallCta){
+        if (active && uses > 0){
+          paywallCta.style.display = "none";
+          paywallCta.disabled = true;
+        } else {
+          paywallCta.disabled = false;
+          paywallCta.style.display = hasPreview ? "flex" : "none";
+        }
+      }
+
+      if(!textOk){
+        setStatus("info", "Schritt 1: Füge Bescheid/Sachverhalt ein (mind. ~20 Zeichen).");
+        return;
+      }
+      if (!hasPreview){
+        setStatus("info", "Schritt 2: Klicke „Vorschau anzeigen“ (kostenlos).");
+        return;
+      }
+      if (!active){
+        setStatus("warn", "Vorschau ist da. Für den vollständigen Download bitte freischalten (9,90 €).");
+      } else if (uses <= 0){
+        setStatus("warn", "Zugang aktiv, aber dein Credit ist aufgebraucht. Bitte erneut kaufen.");
+      } else if (isBusy){
+        setStatus("info", "Anfrage läuft…");
+      } else {
+        setStatus("ok", `Bereit. Credit: ${uses}. Du kannst jetzt herunterladen.`);
+      }
+    }
+
+    async function loadJobcenters() {
+      const sel = elJc;
+      try {
+        const res = await fetch(apiBase + "/jobcenters");
+        const data = await res.json();
+        const items = (data && Array.isArray(data.items)) ? data.items : [];
+
+        sel.innerHTML = "";
+        sel.appendChild(new Option("(bitte wählen)", ""));
+
+        for (const jc of items) {
+          if (!jc || !jc.id || !jc.label) continue;
+
+          const opt = new Option(jc.label, jc.id);
+          if (jc.address) opt.dataset.address = jc.address;
+          if (jc.postalCode) opt.dataset.postalCode = jc.postalCode;
+          if (jc.city) opt.dataset.city = jc.city;
+
+          sel.appendChild(opt);
+        }
+        sel.appendChild(new Option("(anderes / nicht gelistet)", "other"));
+
+        // apply jobcenter from draft AFTER options exist
+        if (_draftLoaded && _draftLoaded.jobcenter){
+          applyDraftJobcenter(_draftLoaded);
+        }
+      } catch (e) {
+        sel.innerHTML = "";
+        sel.appendChild(new Option("Konnte nicht laden (Server läuft?)", ""));
+        setStatus("err", "Jobcenter-Liste konnte nicht geladen werden.");
+      }
+    }
+
+    function resetPreviewState(){
+      hasPreview = false;
+      if (paywallCta) paywallCta.style.display = "none";
+      nextSteps.style.display = "none";
+    }
+
+    ["input","change","keyup"].forEach(evt => {
+      elText.addEventListener(evt, () => {
+        if(!isHydrating) resetPreviewState();
+        recomputeChecks();
+        saveDraft();
+      });
+
+      elBescheid.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+      elZugang.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+      elJc.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+
+      if (elGrund) elGrund.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+      if (elMind) elMind.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+      if (elK) elK.addEventListener(evt, () => { recomputeChecks(); saveDraft(); });
+    });
+
+    function ymd(d) { return d || null; }
+
+    btnExample.addEventListener("click", () => {
+      document.getElementById("vorname").value = "Max";
+      document.getElementById("nachname").value = "Mustermann";
+      document.getElementById("kunden_nummer").value = "01234567";
+      document.getElementById("bescheid_datum").value = "2025-12-01";
+      document.getElementById("zugang_datum").value = "2025-12-03";
+      document.getElementById("minderung").value = "10%";
+      document.getElementById("grund").value = "Meldeversäumnis";
+
+      elText.value =
+`Jobcenter Berlin [Beispiel]
+Bescheid vom 01.12.2025 (Zugang: 03.12.2025)
+
+Es wird eine Minderung von 10% für den Zeitraum 01.01.2026 bis 31.03.2026 festgestellt.
+Begründung: Meldeversäumnis / Nichterscheinen zum Termin am 20.11.2025.
+
+Ich war am genannten Tag krank (ärztliche Bescheinigung vorhanden) und habe mich am selben Tag gemeldet.
+Ich bitte um Überprüfung und Aufhebung der Minderung.`;
+
+      previewEl.textContent = "(Beispiel eingefügt) – klicke jetzt „Vorschau anzeigen“.";
+      resetPreviewState();
+
+      showToast("Beispiel eingefügt");
+      recomputeChecks();
+      saveDraft();
+    });
+
+    btnCopy.addEventListener("click", () => {
+      showToast("Kopieren ist in der Vorschau deaktiviert");
+    });
+
+    btnClear.addEventListener("click", () => {
+      document.getElementById("vorname").value = "";
+      document.getElementById("nachname").value = "";
+      document.getElementById("kunden_nummer").value = "";
+      document.getElementById("bescheid_datum").value = "";
+      document.getElementById("zugang_datum").value = "";
+      document.getElementById("bescheid_text").value = "";
+      document.getElementById("minderung").value = "";
+      document.getElementById("grund").value = "";
+      document.getElementById("format").value = "txt";
+      document.getElementById("k").value = "6";
+      document.getElementById("include_quellen").value = "false";
+      previewEl.textContent = "(noch nichts)";
+      resetPreviewState();
+      showToast("Zurückgesetzt");
+      clearDraft();
+      recomputeChecks();
+    });
+
+    async function runPreview(){
+      if (isBusy) return;
+      if (!canPreviewNow()){
+        recomputeChecks();
+        showToast("Bitte Text einfügen");
+        return;
+      }
+
+      const bescheid_text = elText.value.trim();
+
+      const payload = {
+        user_id: USER_ID,
+        preview: true,
+        question: "widerspruch",
+        facts: {
+          bescheid_text,
+          bescheid_datum: ymd(elBescheid.value),
+          zugang_datum: ymd(elZugang.value),
+          minderung: (elMind.value || null),
+          grund: (elGrund.value || null),
+        },
+        k: parseInt((elK.value || "6"), 10),
+        format: "txt",
+        include_quellen: false
+      };
+
+      isBusy = true;
+      btnPreview.disabled = true;
+      ctaMobile.disabled = true;
+      previewEl.textContent = "Erstelle Vorschau…";
+      setStatus("info", "Erstelle Vorschau…");
+
+      try{
+        const res = await fetch(apiBase + "/widerspruch/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const t = await res.text();
+          previewEl.textContent = "ERROR:\n" + t;
+          setStatus("err", "Vorschau fehlgeschlagen (Server).");
+          return;
+        }
+
+        const text = await res.text();
+        previewEl.textContent = text || "(leer)";
+
+        hasPreview = true;
+        saveDraft();
+
+        await refreshEntitlement();
+        recomputeChecks();
+
+        showToast("Vorschau erstellt");
+        previewEl.scrollIntoView({ behavior:"smooth", block:"center" });
+      } finally {
+        isBusy = false;
+        await refreshEntitlement();
+        recomputeChecks();
+        saveDraft();
+      }
+    }
+
+    async function runWorkflow(){
+      if (isBusy) return;
+
+      if (!canDownloadNow()){
+        recomputeChecks();
+        showToast("Bitte freischalten / Vorschau zuerst");
+        return;
+      }
+
+      const bescheid_text = elText.value.trim();
+      if (!bescheid_text) { alert("Bitte Bescheid/Sachverhalt-Text einfügen."); return; }
+
+      const jobcenterSel = elJc;
+      const jobcenter_id = jobcenterSel.value || null;
+      const selectedOpt = jobcenterSel.options[jobcenterSel.selectedIndex];
+
+      const jobcenter_label =
+        (jobcenter_id && jobcenter_id !== "other" && selectedOpt)
+          ? (selectedOpt.text || null)
+          : null;
+
+      const jobcenter_address =
+        (jobcenter_id && jobcenter_id !== "other" && selectedOpt?.dataset?.address)
+          ? selectedOpt.dataset.address
+          : null;
+
+      const jobcenter_postalCode =
+        (jobcenter_id && jobcenter_id !== "other" && selectedOpt?.dataset?.postalCode)
+          ? selectedOpt.dataset.postalCode
+          : null;
+
+      const jobcenter_city =
+        (jobcenter_id && jobcenter_id !== "other" && selectedOpt?.dataset?.city)
+          ? selectedOpt.dataset.city
+          : null;
+
+      const payload = {
+        user_id: USER_ID,
+        question: "widerspruch",
+        facts: {
+          jobcenter_id,
+          jobcenter_label,
+          jobcenter_address,
+          jobcenter_postalCode,
+          jobcenter_city,
+
+          vorname: (document.getElementById("vorname").value || "").trim() || null,
+          nachname: (document.getElementById("nachname").value || "").trim() || null,
+          kunden_nummer: (document.getElementById("kunden_nummer").value || "").trim() || null,
+
+          bescheid_datum: ymd(elBescheid.value),
+          zugang_datum: ymd(elZugang.value),
+
+          minderung: (elMind.value || null),
+          grund: (elGrund.value || null),
+
+          bescheid_text
+        },
+        k: parseInt((elK.value || "6"), 10),
+        format: document.getElementById("format").value,
+        include_quellen: document.getElementById("include_quellen").value === "true"
+      };
+
+      isBusy = true;
+      btn.disabled = true;
+      btnPreview.disabled = true;
+      ctaMobile.disabled = true;
+      if (paywallCta) paywallCta.disabled = true;
+
+      btn.textContent = "Lade herunter…";
+      previewEl.textContent = "Erstelle vollständigen Text…";
+      setStatus("info", "Erstelle vollständigen Text…");
+
+      try{
+        const res = await fetch(apiBase + "/widerspruch/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const t = await res.text();
+          previewEl.textContent = "ERROR:\n" + t;
+          setStatus("err", "Server-Fehler. Details in der Vorschau.");
+          return;
+        }
+
+        const blob = await res.blob();
+
+        if (payload.format === "txt") {
+          const text = await blob.text();
+          previewEl.textContent = text.slice(0, 4000);
+          setStatus("ok", "Text erstellt. Download startet…");
+        } else {
+          previewEl.textContent = "PDF erstellt. Download startet…";
+          setStatus("ok", "PDF erstellt. Download startet…");
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (payload.format === "pdf") ? "widerspruch.pdf" : "widerspruch.txt";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        showToast("Download gestartet");
+        nextSteps.style.display = "flex";
+        nextSteps.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        saveDraft();
+      } finally {
+        isBusy = false;
+        await refreshEntitlement();
+        btn.textContent = "Widerspruch herunterladen";
+        if (paywallCta) paywallCta.disabled = false;
+        recomputeChecks();
+        saveDraft();
+      }
+    }
+
+    async function startCheckout(){
+      try {
+        btnBuy.disabled = true;
+        if (paywallCta) paywallCta.disabled = true;
+        setStatus("info", "Weiterleitung zu Stripe…");
+
+        const body = { user_id: USER_ID, days: 7 };
+
+        const res = await fetch("/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const t = await res.text();
+          throw new Error(`HTTP ${res.status}: ${t}`);
+        }
+
+        const data = await res.json();
+        if (!data.url) throw new Error("No checkout url returned");
+
+        saveDraft();
+        window.location.href = data.url;
+      } catch (e) {
+        setStatus("err", "Checkout Fehler. " + (e.message || e));
+        btnBuy.disabled = false;
+        if (paywallCta) paywallCta.disabled = false;
+      }
+    }
+
+    btnBuy.addEventListener("click", startCheckout);
+    if (paywallCta) paywallCta.addEventListener("click", startCheckout);
+
+    // init
+    window.addEventListener("DOMContentLoaded", async () => {
+      _draftLoaded = readDraft();
+
+      await loadJobcenters();
+
+      applyDraft(_draftLoaded);
+      applyDraftJobcenter(_draftLoaded);
+
+      await refreshEntitlement();
+
+      const url = new URL(window.location.href);
+      const paid = (url.searchParams.get("paid") === "1" || url.searchParams.get("success") === "1");
+
+      if (paid) {
+        showToast("Zahlung erkannt. Zugang wird aktualisiert…");
+        await refreshEntitlement();
+
+        const textOk = (elText.value || "").trim().length >= 20;
+        if (textOk && !hasPreview) {
+          await runPreview();
+        } else {
+          recomputeChecks();
+        }
+
+        url.searchParams.delete("paid");
+        url.searchParams.delete("success");
+        window.history.replaceState({}, "", url.toString());
+      } else {
+        recomputeChecks();
+      }
+
+      saveDraft();
+    });
+
+    btnPreview.addEventListener("click", runPreview);
+    ctaMobile.addEventListener("click", runPreview);
+    btn.addEventListener("click", runWorkflow);
+  </script>
+</body>
+
+<footer style="margin-top:64px;padding:24px 16px;border-top:1px solid rgba(255,255,255,.12);color:#9ca3af;font-size:13px;">
+  <div style="max-width:1180px;margin:0 auto;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
+    <div>© 2025 Widerspruch Generator</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      <a href="/impressum" style="color:#c7d2fe;">Impressum</a>
+      <a href="/datenschutz" style="color:#c7d2fe;">Datenschutz</a>
+    </div>
+  </div>
+</footer>
+</html>

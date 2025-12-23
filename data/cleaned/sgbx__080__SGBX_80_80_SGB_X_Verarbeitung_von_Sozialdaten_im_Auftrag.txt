@@ -1,0 +1,21 @@
+Sozialgesetzbuch (SGB X)
+Zehntes Buch
+§ 80 SGB X Verarbeitung von Sozialdaten im Auftrag
+(1) Die Erteilung eines Auftrags im Sinne des Artikels 28 der Verordnung (EU) 2016/679 zur Verarbeitung von Sozialdaten ist nur zulässig, wenn der Verantwortliche seiner Rechts- oder Fachaufsichtsbehörde rechtzeitig vor der Auftragserteilung
+1.
+den Auftragsverarbeiter, die bei diesem vorhandenen technischen und organisatorischen Maßnahmen und ergänzenden Weisungen,
+2.
+die Art der Daten, die im Auftrag verarbeitet werden sollen, und den Kreis der betroffenen Personen,
+3.
+die Aufgabe, zu deren Erfüllung die Verarbeitung der Daten im Auftrag erfolgen soll, sowie
+4.
+den Abschluss von etwaigen Unterauftragsverhältnissen
+schriftlich oder elektronisch anzeigt. Soll eine öffentliche Stelle mit der Verarbeitung von Sozialdaten beauftragt werden, hat diese rechtzeitig vor der Auftragserteilung die beabsichtigte Beauftragung ihrer Rechts- oder Fachaufsichtsbehörde schriftlich oder elektronisch anzuzeigen.
+(2) Der Auftrag zur Verarbeitung von Sozialdaten darf nur erteilt werden, wenn die Verarbeitung im Inland, in einem anderen Mitgliedstaat der Europäischen Union, in einem diesem nach § 35 Absatz 7 des Ersten Buches gleichgestellten Staat, oder, sofern ein Angemessenheitsbeschluss gemäß Artikel 45 der Verordnung (EU) 2016/679 vorliegt, in einem Drittstaat oder in einer internationalen Organisation erfolgt.
+(3) Die Erteilung eines Auftrags zur Verarbeitung von Sozialdaten durch nicht-öffentliche Stellen ist nur zulässig, wenn
+1.
+beim Verantwortlichen sonst Störungen im Betriebsablauf auftreten können oder
+2.
+die übertragenen Arbeiten beim Auftragsverarbeiter erheblich kostengünstiger besorgt werden können.
+Dies gilt nicht, wenn Dienstleister in der Informationstechnik, deren absolute Mehrheit der Anteile oder deren absolute Mehrheit der Stimmen dem Bund oder den Ländern zusteht, mit vorheriger Genehmigung der obersten Dienstbehörde des Verantwortlichen beauftragt werden.
+(5) Absatz 3 gilt nicht bei Verträgen über die Prüfung oder Wartung automatisierter Verfahren oder von Datenverarbeitungsanlagen durch andere Stellen im Auftrag, bei denen ein Zugriff auf Sozialdaten nicht ausgeschlossen werden kann. Die Verträge sind bei zu erwartenden oder bereits eingetretenen Störungen im Betriebsablauf unverzüglich der Rechts- oder Fachaufsichtsbehörde mitzuteilen.

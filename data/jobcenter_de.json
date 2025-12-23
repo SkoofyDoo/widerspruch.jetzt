@@ -1,0 +1,86 @@
+[
+  {
+    "id": "jc_berlin_mitte",
+    "label": "Jobcenter Berlin Mitte",
+    "address": "Leipziger Straße 5–7",
+    "postalCode": "10117",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_friedrichshain_kreuzberg",
+    "label": "Jobcenter Berlin Friedrichshain-Kreuzberg",
+    "address": "Lichtenberger Straße 50",
+    "postalCode": "10179",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_pankow",
+    "label": "Jobcenter Berlin Pankow",
+    "address": "Berliner Straße 26",
+    "postalCode": "13189",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_charlottenburg_wilmersdorf",
+    "label": "Jobcenter Berlin Charlottenburg-Wilmersdorf",
+    "address": "Otto-Suhr-Allee 100",
+    "postalCode": "10585",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_spandau",
+    "label": "Jobcenter Berlin Spandau",
+    "address": "Altonaer Straße 70",
+    "postalCode": "13581",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_steeglitz_zehlendorf",
+    "label": "Jobcenter Berlin Steglitz-Zehlendorf",
+    "address": "Birkbuschstraße 10",
+    "postalCode": "12167",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_tempelhof_schoeneberg",
+    "label": "Jobcenter Berlin Tempelhof-Schöneberg",
+    "address": "Rathausstraße 27",
+    "postalCode": "12105",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_neukoelln",
+    "label": "Jobcenter Berlin Neukölln",
+    "address": "Mainzer Straße 27",
+    "postalCode": "12053",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_treptow_koepenick",
+    "label": "Jobcenter Berlin Treptow-Köpenick",
+    "address": "Rudower Chaussee 4",
+    "postalCode": "12489",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_marzahn_hellersdorf",
+    "label": "Jobcenter Berlin Marzahn-Hellersdorf",
+    "address": "Allee der Kosmonauten 29",
+    "postalCode": "12681",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_lichtenberg",
+    "label": "Jobcenter Berlin Lichtenberg",
+    "address": "Gotlindestraße 93",
+    "postalCode": "10365",
+    "city": "Berlin"
+  },
+  {
+    "id": "jc_berlin_reinickendorf",
+    "label": "Jobcenter Berlin Reinickendorf",
+    "address": "Miraustraße 17",
+    "postalCode": "13509",
+    "city": "Berlin"
+  }
+]

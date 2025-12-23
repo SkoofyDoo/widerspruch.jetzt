@@ -1,0 +1,38 @@
+{
+  "debug_user": {
+    "access_until": "2025-12-24T15:01:00.861625+00:00",
+    "uses_left": 0,
+    "stripe_customer_id": "",
+    "last_session_id": "",
+    "last_charge_id": "",
+    "last_payment_intent_id": "",
+    "mode": "test"
+  },
+  "testuser1": {
+    "access_until": "2025-12-28T12:10:02.706795+00:00",
+    "stripe_customer_id": "",
+    "last_session_id": "cs_test_a1BUEwQga7jLGMWRxK5u75VDzOsZSjARDtqSa7SZOQYYfZ08YoJBgr44aM",
+    "last_charge_id": "ch_3SglSXPrEZBN47Nu0p2bMgrV",
+    "last_payment_intent_id": "pi_3SglSXPrEZBN47Nu0nm84Jj9",
+    "mode": "test",
+    "uses_left": 0
+  },
+  "u_e5o8clbw": {
+    "access_until": "2026-01-20T13:30:44.437065+00:00",
+    "uses_left": 0,
+    "stripe_customer_id": "",
+    "last_session_id": "cs_test_a1fNK32btWepXLMkPEZA7o8OVq5fQa3Rj1hCjZfgKA7Npzsdu4Ey0bTv6p",
+    "last_charge_id": "ch_3SgmidPrEZBN47Nu2bajgUBL",
+    "last_payment_intent_id": "pi_3SgmidPrEZBN47Nu2Ra9opP5",
+    "mode": "test"
+  },
+  "u_y1vu5lwr": {
+    "access_until": "2026-01-04T16:46:08.599145+00:00",
+    "uses_left": 0,
+    "stripe_customer_id": "",
+    "last_session_id": "cs_test_a1Q6eyd7MtB3WpbRV7ZIhpVdAJY8HDaFCUu3nBZLp6tFvc5y8uQVllyKx9",
+    "last_charge_id": "ch_3SgpstPrEZBN47Nu114A8wx7",
+    "last_payment_intent_id": "pi_3SgpstPrEZBN47Nu1YV3UfmO",
+    "mode": "test"
+  }
+}

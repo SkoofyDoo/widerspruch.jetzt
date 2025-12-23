@@ -1,0 +1,20 @@
+Sozialgesetzbuch (SGB X)
+Zehntes Buch
+§ 69 SGB X Übermittlung für die Erfüllung sozialer Aufgaben
+(1) Eine Übermittlung von Sozialdaten ist zulässig, soweit sie erforderlich ist
+1.
+für die Erfüllung der Zwecke, für die sie erhoben worden sind, oder für die Erfüllung einer gesetzlichen Aufgabe der übermittelnden Stelle nach diesem Gesetzbuch oder einer solchen Aufgabe des Dritten, an den die Daten übermittelt werden, wenn er eine in § 35 des Ersten Buches genannte Stelle ist,
+2.
+für die Durchführung eines mit der Erfüllung einer Aufgabe nach Nummer 1 zusammenhängenden gerichtlichen Verfahrens einschließlich eines Strafverfahrens oder
+3.
+für die Richtigstellung unwahrer Tatsachenbehauptungen der betroffenen Person im Zusammenhang mit einem Verfahren über die Erbringung von Sozialleistungen; die Übermittlung bedarf der vorherigen Genehmigung durch die zuständige oberste Bundes- oder Landesbehörde.
+(2) Für die Erfüllung einer gesetzlichen oder sich aus einem Tarifvertrag ergebenden Aufgabe sind den in § 35 des Ersten Buches genannten Stellen gleichgestellt
+1.
+die Stellen, die Leistungen nach dem Lastenausgleichsgesetz, dem Bundesentschädigungsgesetz, dem Strafrechtlichen Rehabilitierungsgesetz, dem Beruflichen Rehabilitierungsgesetz, dem Gesetz über die Entschädigung für Strafverfolgungsmaßnahmen, dem Unterhaltssicherungsgesetz, dem Beamtenversorgungsgesetz und den Vorschriften, die auf das Beamtenversorgungsgesetz verweisen, dem Soldatenentschädigungsgesetz, dem Anspruchs- und Anwartschaftsüberführungsgesetz und den Vorschriften der Länder über die Gewährung von Blinden- und Pflegegeldleistungen zu erbringen haben,
+2.
+die gemeinsamen Einrichtungen der Tarifvertragsparteien im Sinne des § 4 Absatz 2 des Tarifvertragsgesetzes, die Zusatzversorgungseinrichtungen des öffentlichen Dienstes und die öffentlich-rechtlichen Zusatzversorgungseinrichtungen,
+3.
+die Bezügestellen des öffentlichen Dienstes, soweit sie kindergeldabhängige Leistungen des Besoldungs-, Versorgungs- und Tarifrechts unter Verwendung von personenbezogenen Kindergelddaten festzusetzen haben.
+(3) Die Übermittlung von Sozialdaten durch die Bundesagentur für Arbeit an die Krankenkassen ist zulässig, soweit sie erforderlich ist, den Krankenkassen die Feststellung der Arbeitgeber zu ermöglichen, die am Ausgleich der Arbeitgeberaufwendungen nach dem Aufwendungsausgleichsgesetz teilnehmen.
+(4) Die Krankenkassen sind befugt, einem Arbeitgeber mitzuteilen, ob die Fortdauer einer Arbeitsunfähigkeit oder eine erneute Arbeitsunfähigkeit eines Arbeitnehmers auf derselben Krankheit beruht; die Übermittlung von Diagnosedaten an den Arbeitgeber ist nicht zulässig.
+(5) Die Übermittlung von Sozialdaten ist zulässig für die Erfüllung der gesetzlichen Aufgaben der Rechnungshöfe und der anderen Stellen, auf die § 67c Absatz 3 Satz 1 Anwendung findet.

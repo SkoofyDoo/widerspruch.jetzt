@@ -1,0 +1,14 @@
+Sozialgesetzbuch (SGB X)
+Zehntes Buch
+§ 83 SGB X Auskunftsrecht der betroffenen Personen
+(1) Das Recht auf Auskunft der betroffenen Person gemäß Artikel 15 der Verordnung (EU) 2016/679 besteht nicht, soweit
+1.
+die betroffene Person nach § 82a Absatz 1, 4 und 5 nicht zu informieren ist oder
+2.
+die Sozialdaten
+a)
+nur deshalb gespeichert sind, weil sie auf Grund gesetzlicher oder satzungsmäßiger Aufbewahrungsvorschriften nicht gelöscht werden dürfen, oder
+b)
+und die Auskunftserteilung einen unverhältnismäßigen Aufwand erfordern würde sowie eine Verarbeitung zu anderen Zwecken durch geeignete technische und organisatorische Maßnahmen ausgeschlossen ist.
+(2) Die betroffene Person soll in dem Antrag auf Auskunft gemäß Artikel 15 der Verordnung (EU) 2016/679 die Art der Sozialdaten, über die Auskunft erteilt werden soll, näher bezeichnen. Sind die Sozialdaten nicht automatisiert oder nicht in nicht automatisierten Dateisystemen gespeichert, wird die Auskunft nur erteilt, soweit die betroffene Person Angaben macht, die das Auffinden der Daten ermöglichen, und der für die Erteilung der Auskunft erforderliche Aufwand nicht außer Verhältnis zu dem von der betroffenen Person geltend gemachten Informationsinteresse steht. Soweit Artikel 15 und 12 Absatz 3 der Verordnung (EU) 2016/679 keine Regelungen enthalten, bestimmt der Verantwortliche das Verfahren, insbesondere die Form der Auskunftserteilung, nach pflichtgemäßem Ermessen. § 25 Absatz 2 gilt entsprechend.
+(5) Bezieht sich die Informationserteilung auf die Übermittlung von Sozialdaten durch öffentliche Stellen an Staatsanwaltschaften und Gerichte im Bereich der Strafverfolgung, an Polizeibehörden, Verfassungsschutzbehörden, den Bundesnachrichtendienst und den Militärischen Abschirmdienst, ist sie nur mit Zustimmung dieser Stellen zulässig.
