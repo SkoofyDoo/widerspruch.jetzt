@@ -1,0 +1,93 @@
+# Deploy & demo runbook
+
+## What you need
+
+1. **Prebuilt Chroma index** in `data/chroma` (from `src/` pipeline once)
+2. **HuggingFace token** with permission to call Inference Providers  
+   https://huggingface.co/settings/tokens
+3. Docker (optional but recommended)
+
+## A) Local demo with HuggingFace (no Ollama)
+
+```bash
+# 1) .env
+copy .env.example .env   # Windows
+# set:
+#   LLM_PROVIDER=huggingface
+#   HF_TOKEN=hf_...
+#   DEMO_MODE=true
+#   DEMO_ALLOW_DOWNLOAD=false
+
+# 2) index must exist
+# data/chroma  <- run src/fetch_* + clean + chunk + index once
+
+# 3) run
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8008
+```
+
+Open http://127.0.0.1:8008/ui/ → fill form → **Vorschau**.
+
+## B) Docker demo profile
+
+```bash
+# .env must contain HF_TOKEN=
+docker compose --profile demo up --build
+```
+
+This sets `LLM_PROVIDER=huggingface` and `DEMO_MODE=true`.
+
+## C) Docker + local Ollama (quality)
+
+```bash
+# host: ollama serve && ollama pull qwen2.5:14b-instruct
+# .env: LLM_PROVIDER=ollama  DEMO_MODE=false
+docker compose up --build
+```
+
+## D) Public URL for recruiters
+
+Docker alone is not public. Pick one host:
+
+| Host | Notes |
+|------|--------|
+| Railway / Render / Fly.io | Deploy Dockerfile, set env vars, attach volume or bake index |
+| Hetzner VPS | Most stable for DE portfolio (~€4/mo) |
+| HF Spaces (Docker) | Possible but heavy (torch + chroma) |
+
+Minimum env on host:
+
+```env
+LLM_PROVIDER=huggingface
+HF_TOKEN=...
+DEMO_MODE=true
+DEMO_ALLOW_DOWNLOAD=false
+APP_URL=https://your-demo-host
+```
+
+Ship `data/chroma` via volume or image layer.
+
+Then put in README:
+
+```markdown
+**Live demo:** https://your-demo-host/ui/
+```
+
+## Checklist before sharing with recruiters
+
+- [ ] `/health` → `chroma_ok: true`, `llm_ok: true`, `demo_mode: true`
+- [ ] Preview works without payment
+- [ ] Download disabled or clearly limited
+- [ ] Banner visible: no legal advice
+- [ ] Rate limit does not 500 the app
+- [ ] Sample letter link in README as fallback
+
+## Your personal action list (order)
+
+1. Create HF token → put in `.env`
+2. Ensure `data/chroma` exists (Desktop already has it)
+3. Run `DEMO_MODE=true` + HF locally once
+4. `docker compose --profile demo up --build`
+5. Deploy public host (Railway/Fly/VPS)
+6. Paste Live Demo URL into README
+7. Record 90s Loom if cold start is slow

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tester – WIDERSPRUCH.JETZT</title>
+  <link rel="stylesheet" href="/ui/tester/tester.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brand-title">
+          <b>WIDERSPRUCH.JETZT</b>
+          <span>Tester</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="btn-link" href="/ui/">← Zurück</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h1>Tester Token erstellen</h1>
+    <p class="sub">Nur für interne Tests. Token wird serverseitig erzeugt.</p>
+
+    <div class="card">
+      <div class="row">
+        <label>E-Mail</label>
+        <input id="email" type="email" placeholder="test@example.com" />
+      </div>
+
+      <div class="row grid2">
+        <div>
+          <label>Tage gültig</label>
+          <input id="days" type="number" min="1" value="14" />
+        </div>
+        <div>
+          <label>Max. Uses</label>
+          <input id="max_uses" type="number" min="1" value="30" />
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Admin Secret</label>
+        <input id="secret" type="password" placeholder="ADMIN_SECRET" />
+      </div>
+
+      <button id="btnMint" class="btn">Token erstellen</button>
+
+      <div class="out">
+        <div class="out-head">
+          <b>Ergebnis</b>
+          <button id="btnCopy" class="btn2" disabled>Copy</button>
+        </div>
+        <pre id="result">(noch nichts)</pre>
+      </div>
+
+      <p class="hint">
+        Tipp: Test-Link: <code>/ui/?user_id=DEIN_USER_ID</code>
+      </p>
+    </div>
+  </div>
+  <div>
+    <button id="btnTestTxt" class="btn2">Test TXT Download</button>
+    <button id="btnTestPdf" class="btn2">Test PDF Download</button>
+  </div>
+    
+
+  <script src="/ui/tester/tester.js"></script>
+</body>
+</html>

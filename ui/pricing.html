@@ -6,237 +6,434 @@
 <title>Preise – WIDERSPRUCH.JETZT</title>
 
 <style>
-/* === BASE (из твоего UI) === */
-:root{
-  --bg:#0b1020;
-  --card:#0f172a;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-  --accent:#6366f1;
-  --ok:#22c55e;
-  --radius:18px;
-  --shadow:0 14px 40px rgba(0,0,0,.35);
-}
+  :root{
+    --bg:#0b1020;
+    --panel:#0f172a;
+    --text:#e5e7eb;
+    --muted:#9ca3af;
+    --line:rgba(255,255,255,.10);
+    --line2:rgba(255,255,255,.08);
 
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  background:var(--bg);
-  color:var(--text);
-}
+    --accent:#6366f1;
+    --ok:#22c55e;
 
-.container{
-  max-width:1120px;
-  margin:40px auto 80px;
-  padding:0 16px;
-  text-align:center;
-}
+    --radius:18px;
+    --shadow:0 14px 40px rgba(0,0,0,.35);
+    --shadow2:0 10px 26px rgba(0,0,0,.28);
+    --focus: rgba(99,102,241,.55);
+  }
 
-h1{
-  font-size:34px;
-  margin-bottom:10px;
-}
-.sub{
-  color:var(--muted);
-  max-width:760px;
-  margin:0 auto 30px;
-}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% 0%, rgba(99,102,241,.25), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(34,197,94,.18), transparent 55%),
+      radial-gradient(900px 500px at 50% 120%, rgba(139,92,246,.14), transparent 55%),
+      var(--bg);
+  }
+  a{color:inherit;text-decoration:none}
+  button{font:inherit}
 
-/* === TABS === */
-.tabs{
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  margin-bottom:26px;
-}
-.tab{
-  padding:10px 16px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.15);
-  background:rgba(255,255,255,.04);
-  color:#fff;
-  cursor:pointer;
-  font-weight:700;
-}
-.tab.active{
-  background:linear-gradient(180deg,#6366f1,#4f46e5);
-}
+  /* Topbar like index */
+  .topbar{
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(10px);
+    background: rgba(11,16,32,.55);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .topbar-inner{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo{
+    width:36px;height:36px;border-radius:14px;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(99,102,241,.98), rgba(99,102,241,.18)),
+      radial-gradient(circle at 70% 70%, rgba(34,197,94,.55), transparent 55%);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 12px 26px rgba(99,102,241,.18);
+    flex:0 0 auto;
+  }
+  .brand-title b{
+    display:block;
+    font-size:13px;
+    font-weight:880;
+    letter-spacing:.2px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .brand-title span{
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-top:1px;
+  }
 
-/* === GRID === */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:18px;
-}
-@media(max-width:900px){
-  .grid{grid-template-columns:1fr}
-}
+  .top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .btn-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.05);
+    color: #e5e7eb;
+    font-weight: 820;
+    letter-spacing:.2px;
+    transition: transform .08s ease, filter .15s ease;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn-link:hover{filter:brightness(1.08)}
+  .btn-link:active{transform:translateY(1px)}
+  .spark{
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(99,102,241,.18);
+    flex: 0 0 auto;
+  }
 
-.card{
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:var(--radius);
-  padding:24px;
-  box-shadow:var(--shadow);
-  position:relative;
-}
+  .container{
+    max-width: 1180px;
+    margin: 22px auto 80px;
+    padding: 0 16px;
+  }
 
-.card.highlight{
-  border:2px solid var(--accent);
-}
+  .hero{
+    margin-top: 16px;
+    padding: 16px 0 4px;
+  }
+  h1{
+    margin:0;
+    font-size: 28px;
+    font-weight: 920;
+    letter-spacing:.2px;
+  }
+  .sub{
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 860px;
+    font-size: 14px;
+  }
 
-.badge{
-  position:absolute;
-  top:14px;
-  right:14px;
-  background:rgba(99,102,241,.2);
-  color:#c7d2fe;
-  padding:6px 10px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:800;
-}
+  /* Tabs (pill) */
+  .tabs{
+    display:flex;
+    gap:10px;
+    margin: 18px 0 18px;
+    flex-wrap:wrap;
+  }
+  .tab{
+    padding:10px 14px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.04);
+    color:#e5e7eb;
+    cursor:pointer;
+    font-weight:860;
+    letter-spacing:.2px;
+    transition: filter .15s ease, transform .08s ease;
+    user-select:none;
+  }
+  .tab:hover{filter:brightness(1.06)}
+  .tab:active{transform:translateY(1px)}
+  .tab.active{
+    background: linear-gradient(180deg, rgba(99,102,241,.98), rgba(99,102,241,.72));
+    border-color: rgba(99,102,241,.26);
+    box-shadow: 0 16px 34px rgba(99,102,241,.12);
+  }
 
-.price{
-  font-size:36px;
-  font-weight:900;
-  margin:14px 0 6px;
-}
-.price span{
-  font-size:13px;
-  color:var(--muted);
-}
+  /* Cards */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+  @media (max-width: 980px){
+    .grid{grid-template-columns:1fr}
+  }
 
-.list{
-  text-align:left;
-  margin:16px 0;
-  font-size:14px;
-}
-.list li{
-  margin-bottom:8px;
-}
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border: 1px solid var(--line2);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    position: relative;
 
-.btn{
-  display:block;
-  width:100%;
-  margin-top:14px;
-  padding:12px;
-  border-radius:14px;
-  border:none;
-  background:linear-gradient(180deg,#6366f1,#4f46e5);
-  color:#fff;
-  font-weight:800;
-  cursor:pointer;
-}
+    display:flex;
+    flex-direction:column; /* for button alignment */
+    min-height: 330px;     /* equal height baseline */
+  }
+  .card.highlight{
+    border: 2px solid rgba(99,102,241,.55);
+    box-shadow: 0 18px 44px rgba(99,102,241,.12), var(--shadow);
+  }
+  .badge{
+    position:absolute;
+    top:14px;
+    right:14px;
+    background: rgba(99,102,241,.20);
+    color: #c7d2fe;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    border: 1px solid rgba(255,255,255,.12);
+    letter-spacing:.2px;
+  }
 
-/* === HIDE LOGIC === */
-[data-view]{display:none}
-[data-view].active{display:grid}
+  .plan{
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 880;
+    letter-spacing:.2px;
+  }
+  .price{
+    font-size: 34px;
+    font-weight: 980;
+    margin: 12px 0 4px;
+    letter-spacing:.2px;
+  }
+  .price span{
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 750;
+  }
+  .hint{
+    color: rgba(229,231,235,.75);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .list{
+    margin: 14px 0 0;
+    padding-left: 18px;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .list li{ margin-bottom: 8px; }
+
+  /* Button aligned across cards */
+  .btn{
+    margin-top: auto;          /* push to bottom */
+    width: 100%;
+    padding: 12px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: linear-gradient(180deg, rgba(99,102,241,.98), rgba(99,102,241,.72));
+    color: #fff;
+    font-weight: 920;
+    cursor:pointer;
+    transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+    box-shadow: 0 16px 34px rgba(99,102,241,.18);
+  }
+  .btn:hover{filter:brightness(1.05)}
+  .btn:active{transform:translateY(1px)}
+  .btn.secondary{
+    background: rgba(255,255,255,.05);
+    box-shadow: none;
+  }
+
+  /* Views */
+  [data-view]{display:none}
+  [data-view].active{display:grid}
+
+  /* Footer like index */
+  footer{
+    margin-top: 64px;
+    padding: 24px 16px;
+    border-top: 1px solid rgba(255,255,255,.12);
+    color:#9ca3af;
+    font-size:13px;
+  }
+  .footer-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .footer-links a{color:#c7d2fe}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h1>Preise, die sich rechnen</h1>
-  <p class="sub">
-    Zahle pro Dokument oder arbeite unbegrenzt im Kanzlei-Modell.
-    Klare Kosten. Klare Ersparnis.
-  </p>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brand-title">
+          <b>WIDERSPRUCH.JETZT</b>
+          <span>Preise & Pakete</span>
+        </div>
+      </div>
 
-  <!-- SEGMENT -->
-  <div class="tabs">
-    <div class="tab active" data-seg="privat">Privat</div>
-    <div class="tab" data-seg="b2b">Kanzlei / Beratung</div>
-  </div>
-
-  <!-- TOKENS -->
-  <div class="grid active" data-view="privat">
-    <div class="card">
-      <h3>1 Token</h3>
-      <div class="price">9,90 €</div>
-      <ul class="list">
-        <li>✓ 1 Download</li>
-        <li>✓ TXT / PDF</li>
-        <li>✓ Keine Bindung</li>
-      </ul>
-      <button class="btn">Jetzt kaufen</button>
-    </div>
-
-    <div class="card highlight">
-      <div class="badge">–33 %</div>
-      <h3>3 Tokens</h3>
-      <div class="price">19,90 €</div>
-      <ul class="list">
-        <li>✓ 3 Downloads</li>
-        <li>✓ 6,63 € pro Dokument</li>
-      </ul>
-      <button class="btn">Beliebt</button>
-    </div>
-
-    <div class="card">
-      <div class="badge">–40 %</div>
-      <h3>5 Tokens</h3>
-      <div class="price">29,90 €</div>
-      <ul class="list">
-        <li>✓ 5 Downloads</li>
-        <li>✓ 5,98 € pro Dokument</li>
-      </ul>
-      <button class="btn">Bestes Preis-Leistungs-Verhältnis</button>
+      <div class="top-actions">
+        <a class="btn-link" href="/ui/" title="Zurück zum Generator">
+          <span class="spark"></span>
+          ← Zurück
+        </a>
+      </div>
     </div>
   </div>
 
-  <!-- ABO -->
-  <div class="grid" data-view="b2b">
-    <div class="card">
-      <h3>Monatlich</h3>
-      <div class="price">149,90 € <span>/ Monat</span></div>
-      <ul class="list">
-        <li>✓ Unbegrenzte Nutzung</li>
-        <li>✓ Kanzlei-Workflow</li>
-      </ul>
-      <button class="btn">Starten</button>
+  <div class="container">
+    <div class="hero">
+      <h1>Preise, die sich rechnen</h1>
+      <p class="sub">
+        Zahle pro Dokument oder arbeite im Kanzlei-Modell. Klare Kosten, klarer Output.
+      </p>
     </div>
 
-    <div class="card">
-      <div class="badge">–7 %</div>
-      <h3>3 Monate</h3>
-      <div class="price">419,90 €</div>
-      <ul class="list">
-        <li>✓ 139,97 € / Monat</li>
-      </ul>
-      <button class="btn">Vierteljahr sichern</button>
+    <div class="tabs">
+      <div class="tab active" data-seg="privat">Privat</div>
+      <div class="tab" data-seg="b2b">Kanzlei / Beratung</div>
     </div>
 
-    <div class="card highlight">
-      <div class="badge">–17 %</div>
-      <h3>Jahr</h3>
-      <div class="price">1.499,90 €</div>
-      <ul class="list">
-        <li>✓ 124,99 € / Monat</li>
-        <li>✓ Beste Ersparnis</li>
-      </ul>
-      <button class="btn">Jahreslizenz</button>
+    <!-- PRIVAT -->
+    <div class="grid active" data-view="privat">
+      <div class="card">
+        <div class="plan">1 Token</div>
+        <div class="price">9,90 €</div>
+        <div class="hint">1 Download · TXT/PDF · keine Bindung</div>
+
+        <ul class="list">
+          <li>✓ 1 Download</li>
+          <li>✓ TXT oder PDF</li>
+          <li>✓ Sofort nutzbar</li>
+        </ul>
+
+        <button class="btn" type="button">Jetzt kaufen</button>
+      </div>
+
+      <div class="card highlight">
+        <div class="badge">–33 %</div>
+        <div class="plan">3 Tokens</div>
+        <div class="price">19,90 €</div>
+        <div class="hint">6,63 € pro Dokument</div>
+
+        <ul class="list">
+          <li>✓ 3 Downloads</li>
+          <li>✓ TXT oder PDF</li>
+          <li>✓ Bestes Paket für mehrere Fälle</li>
+        </ul>
+
+        <button class="btn" type="button">Beliebt</button>
+      </div>
+
+      <div class="card">
+        <div class="badge">–40 %</div>
+        <div class="plan">5 Tokens</div>
+        <div class="price">29,90 €</div>
+        <div class="hint">5,98 € pro Dokument</div>
+
+        <ul class="list">
+          <li>✓ 5 Downloads</li>
+          <li>✓ TXT oder PDF</li>
+          <li>✓ Bestes Preis-Leistungs-Verhältnis</li>
+        </ul>
+
+        <button class="btn" type="button">Bestes Angebot</button>
+      </div>
     </div>
+
+    <!-- B2B -->
+    <div class="grid" data-view="b2b">
+      <div class="card">
+        <div class="plan">Monatlich</div>
+        <div class="price">149,90 € <span>/ Monat</span></div>
+        <div class="hint">Unbegrenzte Nutzung</div>
+
+        <ul class="list">
+          <li>✓ Unbegrenzte Nutzung</li>
+          <li>✓ Kanzlei-Workflow</li>
+          <li>✓ Priorisierter Support</li>
+        </ul>
+
+        <button class="btn" type="button">Starten</button>
+      </div>
+
+      <div class="card">
+        <div class="badge">–7 %</div>
+        <div class="plan">3 Monate</div>
+        <div class="price">419,90 €</div>
+        <div class="hint">139,97 € / Monat</div>
+
+        <ul class="list">
+          <li>✓ Unbegrenzte Nutzung</li>
+          <li>✓ Abrechnung pro Quartal</li>
+          <li>✓ Planbar für Teams</li>
+        </ul>
+
+        <button class="btn secondary" type="button">Vierteljahr sichern</button>
+      </div>
+
+      <div class="card highlight">
+        <div class="badge">–17 %</div>
+        <div class="plan">Jahr</div>
+        <div class="price">1.499,90 €</div>
+        <div class="hint">124,99 € / Monat</div>
+
+        <ul class="list">
+          <li>✓ Unbegrenzte Nutzung</li>
+          <li>✓ Beste Ersparnis</li>
+          <li>✓ Ideal für dauerhaftes Volumen</li>
+        </ul>
+
+        <button class="btn" type="button">Jahreslizenz</button>
+      </div>
+    </div>
+
   </div>
-</div>
+
+  <footer>
+    <div class="footer-inner">
+      <div>© 2025 WIDERSPRUCH.JETZT</div>
+      <div class="footer-links">
+        <a href="/impressum">Impressum</a>
+        <a href="/datenschutz">Datenschutz</a>
+      </div>
+    </div>
+  </footer>
 
 <script>
-const tabs=document.querySelectorAll('.tab');
-const views=document.querySelectorAll('[data-view]');
-tabs.forEach(t=>{
-  t.onclick=()=>{
-    tabs.forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    views.forEach(v=>{
-      v.classList.toggle(
-        'active',
-        v.dataset.view===t.dataset.seg
-      );
-    });
-  }
-});
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('[data-view]');
+
+  tabs.forEach(t=>{
+    t.onclick=()=>{
+      tabs.forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      views.forEach(v=>{
+        v.classList.toggle('active', v.dataset.view===t.dataset.seg);
+      });
+    };
+  });
 </script>
 
 </body>

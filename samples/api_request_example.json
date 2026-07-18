@@ -1,0 +1,20 @@
+{
+  "user_id": "demo-user",
+  "text": "Ich war am Meldetermin erkrankt. Ein ärztliches Attest liegt vor und konnte nicht rechtzeitig eingereicht werden. Der Bescheid mindert meine Leistungen um 10%.",
+  "facts": {
+    "vorname": "Max",
+    "nachname": "Mustermann",
+    "kunden_nummer": "0123456789",
+    "jobcenter_label": "Jobcenter Berlin Mitte",
+    "user_address": "Musterstraße 1",
+    "user_postalCode": "10115",
+    "user_city": "Berlin",
+    "bescheid_datum": "2025-12-01",
+    "zugang_datum": "2025-12-03",
+    "anlagen": ["Ärztliches Attest"]
+  },
+  "k": 4,
+  "style": "standard",
+  "format": "txt",
+  "preview": true
+}

@@ -1,0 +1,60 @@
+# Local quality (Ollama on host):
+#   docker compose up --build
+#
+# Portfolio demo (HuggingFace remote LLM, no payments):
+#   set HF_TOKEN in .env
+#   docker compose --profile demo up --build
+
+services:
+  api:
+    build: .
+    ports:
+      - "8008:8008"
+    env_file:
+      - .env
+    environment:
+      APP_URL: ${APP_URL:-http://127.0.0.1:8008}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b-instruct}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_MODEL: ${HF_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_ALLOW_DOWNLOAD: ${DEMO_ALLOW_DOWNLOAD:-false}
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Explicit demo profile: same image, demo-friendly defaults
+  api-demo:
+    profiles: ["demo"]
+    build: .
+    ports:
+      - "8008:8008"
+    env_file:
+      - .env
+    environment:
+      APP_URL: ${APP_URL:-http://127.0.0.1:8008}
+      LLM_PROVIDER: huggingface
+      HF_TOKEN: ${HF_TOKEN:?HF_TOKEN is required for demo profile}
+      HF_MODEL: ${HF_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      DEMO_MODE: "true"
+      DEMO_ALLOW_DOWNLOAD: ${DEMO_ALLOW_DOWNLOAD:-false}
+      DEMO_MAX_PREVIEWS_PER_IP: ${DEMO_MAX_PREVIEWS_PER_IP:-20}
+      MAX_REPAIR_ROUNDS_CIT: "0"
+      MAX_REPAIR_ROUNDS_STRONG: "0"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

@@ -1,4 +1,24 @@
 .env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+
+# Runtime / index data (rebuild via src/ pipeline)
 data/*
-__pycache__
-.venv
+!data/.gitkeep
+
+# Local secrets / OS junk
+.DS_Store
+Thumbs.db
+
+

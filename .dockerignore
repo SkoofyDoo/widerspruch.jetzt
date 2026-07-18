@@ -1,0 +1,16 @@
+.venv
+venv
+.git
+.gitignore
+.env
+__pycache__
+.pytest_cache
+*.pyc
+.mypy_cache
+.idea
+.vscode
+app/_serve_backup.py
+docs
+tests
+*.md
+!README.md
