@@ -1,5 +1,9 @@
 # Demo guide (5–8 minutes)
 
+**Live demo (no install):** https://sgb2-rag-production.up.railway.app/ui/  
+**Health:** https://sgb2-rag-production.up.railway.app/health  
+**Animated preview:** [assets/demo-preview.gif](assets/demo-preview.gif)
+
 This guide is for recruiters, reviewers, and you recording a short Loom/video.
 
 ## Option A — No LLM (structure only)
