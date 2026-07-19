@@ -568,8 +568,30 @@
     if (el.preview) el.preview.textContent = "(noch nichts)";
     if (el.paywallCta) el.paywallCta.style.display = "none";
 
+    lastGeneratedLetter = "";
     onInput();
     toast("Felder geleert.");
+  }
+
+  // Last generated letter — reuse for TXT/PDF so download matches Vorschau
+  let lastGeneratedLetter = "";
+
+  function getExportableLetter() {
+    if (lastGeneratedLetter && lastGeneratedLetter.trim().length > 40) {
+      return lastGeneratedLetter.trim();
+    }
+    const fromUi = (el.preview?.textContent || "").trim();
+    if (
+      fromUi &&
+      fromUi.length > 40 &&
+      !fromUi.startsWith("⏳") &&
+      !fromUi.startsWith("Klicke") &&
+      !fromUi.startsWith("Fehler") &&
+      !fromUi.startsWith("Server ")
+    ) {
+      return fromUi;
+    }
+    return "";
   }
 
   // ---------------------------
@@ -599,7 +621,7 @@
       }, 900);
 
       const payload = buildPayload({ preview: true, format: "json" });
-      const res = await fetch(workflowUrl(), {
+      const res = await fetch(workflowUrl() + "?preview=1", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -608,6 +630,7 @@
 
       const data = await readTextOrJson(res);
       if (!res.ok) {
+        lastGeneratedLetter = "";
         let msg = "Fehler";
         if (typeof data === "string" && data.trim()) msg = data;
         else if (data?.detail) msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
@@ -622,10 +645,13 @@
         return;
       }
 
+      const letterText = (typeof data === "string") ? data : (data?.text || JSON.stringify(data, null, 2));
+      lastGeneratedLetter = letterText;
+
       setStatus("ok", "Vorschau bereit.");
       toast("Vorschau bereit.");
       if (el.preview) {
-        el.preview.textContent = (typeof data === "string") ? data : JSON.stringify(data, null, 2);
+        el.preview.textContent = letterText;
         el.preview.classList.remove("preview-locked");
         el.preview.classList.add("preview-open");
       }
@@ -653,7 +679,7 @@
   }
 
   // ---------------------------
-  // Download (open demo or beta)
+  // Download (open demo or beta) — always same text as Vorschau
   // ---------------------------
   async function doDownload() {
     if (!lastState.allOk) {
@@ -670,45 +696,83 @@
     setDisabled(el.btnDownload, true);
 
     const startedAt = Date.now();
-    setStatus("info", fmt === "pdf" ? "Erzeuge PDF…" : "Erzeuge TXT…");
-    toast(fmt === "pdf" ? "PDF wird erstellt…" : "TXT wird erstellt…");
-
-    const timeout = withTimeout(120000);
+    let letter = getExportableLetter();
 
     try {
-      const payload = buildPayload({ preview: false, format: fmt });
-      const res = await fetch(workflowUrl(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: timeout.signal
-      });
+      // 1) Need a letter first — generate once if no Vorschau yet
+      if (!letter) {
+        setStatus("info", "Erzeuge Text…");
+        toast("Kein Vorschau-Text — generiere einmal…");
+        const genRes = await fetch(workflowUrl() + "?preview=1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildPayload({ preview: true, format: "json" })),
+        });
+        const genData = await readTextOrJson(genRes);
+        if (!genRes.ok) {
+          const msg = (typeof genData === "string") ? genData : (genData?.detail || "Generierung fehlgeschlagen");
+          throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+        }
+        letter = (typeof genData === "string") ? genData : (genData?.text || "");
+        letter = (letter || "").trim();
+        if (letter.length < 40) throw new Error("Leerer Brieftext vom Server.");
+        lastGeneratedLetter = letter;
+        if (el.preview) {
+          el.preview.textContent = letter;
+          el.preview.classList.remove("preview-locked");
+          el.preview.classList.add("preview-open");
+        }
+        if (el.btnCopy) setDisabled(el.btnCopy, false);
+      }
 
-      if (!res.ok) {
-        const err = await readTextOrJson(res);
-        setStatus("err", "Download fehlgeschlagen.");
-        toast("Download fehlgeschlagen.");
-        if (el.preview) el.preview.textContent = (typeof err === "string") ? err : JSON.stringify(err, null, 2);
+      // 2) TXT: pure client download — 100% identical to Vorschau
+      if (fmt === "txt") {
+        const blob = new Blob([letter], { type: "text/plain;charset=utf-8" });
+        downloadBlob(blob, "widerspruch.txt");
+        const sec = Math.round((Date.now() - startedAt) / 1000);
+        setStatus("ok", `TXT gespeichert (${sec}s) — gleicher Text wie Vorschau.`);
+        toast("TXT heruntergeladen (wie Vorschau).");
+        incUseCount();
         return;
       }
 
-      const ct = res.headers.get("Content-Type") || "";
-      const cd = res.headers.get("Content-Disposition") || "";
-      const fallback = fmt === "pdf" ? "widerspruch.pdf" : "widerspruch.txt";
+      // 3) PDF: server only renders the exact letter_text (no second LLM)
+      setStatus("info", "Erzeuge PDF aus Vorschau…");
+      toast("PDF aus Vorschau…");
+      const timeout = withTimeout(60000);
+      try {
+        const payload = buildPayload({
+          preview: false,
+          format: "pdf",
+          letter_text: letter,
+        });
+        const res = await fetch(workflowUrl() + "?download=1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: timeout.signal,
+        });
 
-      if (isLikelyDownloadResponse(ct, cd)) {
+        if (!res.ok) {
+          const err = await readTextOrJson(res);
+          const detail = (typeof err === "string") ? err : (err?.detail || "PDF fehlgeschlagen");
+          throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+        }
+
+        const ct = res.headers.get("Content-Type") || "";
+        const cd = res.headers.get("Content-Disposition") || "";
+        if (!isLikelyDownloadResponse(ct, cd) && !ct.includes("pdf")) {
+          // Still try blob — some proxies strip disposition
+        }
         const blob = await res.blob();
-        const fname = filenameFromCD(cd, fallback);
-        downloadBlob(blob, fname);
+        const fname = filenameFromCD(cd, "widerspruch.pdf");
+        downloadBlob(blob, fname.endsWith(".pdf") ? fname : "widerspruch.pdf");
 
         const sec = Math.round((Date.now() - startedAt) / 1000);
-        setStatus("ok", `Download gestartet (${sec}s).`);
-        toast("Download gestartet.");
-
-        // ✅ count only on real download
+        setStatus("ok", `PDF gespeichert (${sec}s) — gleicher Text wie Vorschau.`);
+        toast("PDF heruntergeladen (wie Vorschau).");
         incUseCount();
 
-        // ✅ feedback after count
         if (fb.modal && shouldShowFeedbackNow()) {
           resetFeedback();
           setTimeout(() => {
@@ -717,23 +781,18 @@
             openFeedback();
           }, 650);
         }
-      } else {
-        // Unexpected but ok response (e.g., json)
-        const data = await readTextOrJson(res);
-        setStatus("ok", "Antwort erhalten.");
-        if (el.preview) el.preview.textContent = (typeof data === "string") ? data : JSON.stringify(data, null, 2);
+      } finally {
+        timeout.done();
       }
     } catch (e) {
       const msg =
         (e?.message === "timeout" || String(e).includes("timeout") || String(e).includes("AbortError"))
           ? "Zeitüberschreitung beim Download. Bitte erneut versuchen."
-          : `Fehler beim Download: ${String(e)}`;
+          : `Fehler beim Download: ${String(e?.message || e)}`;
 
       setStatus("err", msg);
       toast(msg);
-      if (el.preview) el.preview.textContent = msg;
     } finally {
-      timeout.done();
       setDisabled(el.btnDownload, !(lastState.allOk && canDownload()));
     }
   }

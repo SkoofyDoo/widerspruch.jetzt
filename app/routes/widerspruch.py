@@ -38,6 +38,40 @@ def resolve_preview_download(preview, download, body_preview: bool):
     return is_preview, is_download
 
 
+def _export_letter(letter: str, fmt: str, filename: Optional[str]):
+    validation = validate_text(letter)
+    fmt = (fmt or "json").lower().strip()
+
+    if fmt == "txt":
+        out_name = (filename or "widerspruch.txt").strip()
+        if not out_name.lower().endswith(".txt"):
+            out_name += ".txt"
+        return Response(
+            content=letter.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
+        )
+
+    if fmt == "pdf":
+        pdf_bytes = text_to_pdf_bytes(letter)
+        out_name = (filename or "widerspruch.pdf").strip()
+        if not out_name.lower().endswith(".pdf"):
+            out_name += ".pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
+        )
+
+    return {
+        "ok": bool(validation.get("ok")),
+        "text": letter,
+        "validation": validation,
+        "quellen": [],
+        "context": None,
+    }
+
+
 @router.post("/widerspruch/workflow")
 def widerspruch_workflow(
     req: WiderspruchWorkflowRequest,
@@ -47,7 +81,6 @@ def widerspruch_workflow(
 ):
     uid = (req.user_id or "").strip()
     if not uid:
-        # Open portfolio / demo: allow anonymous
         if (not paywall_enabled()) or config.DEMO_MODE:
             uid = "demo-user"
         else:
@@ -57,29 +90,40 @@ def widerspruch_workflow(
         preview, download, bool(getattr(req, "preview", False))
     )
 
-    # Rate-limit free generations in demo/open mode
-    if is_preview or (is_download and not paywall_enabled()):
+    cached = (getattr(req, "letter_text", None) or "").strip()
+    # Always prefer client-supplied letter for any non-preview export
+    # (TXT/PDF must match Vorschau — never call LLM again)
+    use_cache = bool(cached) and len(cached) >= 20 and not is_preview
+
+    if is_preview and not use_cache:
         check_preview_rate_limit(request)
+    if is_download and not use_cache:
+        # Only rate-limit when we still need a new generation
+        if not paywall_enabled():
+            check_preview_rate_limit(request)
 
     if is_download:
         enforce_demo_download_policy(True)
-        # Only charge credits when paywall is explicitly enabled
         if paywall_enabled() and not (config.DEMO_MODE and config.DEMO_ALLOW_DOWNLOAD):
             consume_use_or_402(uid)
 
-    facts = hydrate_jobcenter_from_db(req.facts or {})
-    k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
-    style = (req.style or "standard").lower().strip()
-    req_text = extract_user_text(req)
+    if use_cache:
+        letter = cached
+        items, context = [], None
+    else:
+        facts = hydrate_jobcenter_from_db(req.facts or {})
+        k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
+        style = (req.style or "standard").lower().strip()
+        req_text = extract_user_text(req)
 
-    try:
-        letter, items, context = generate_widerspruch_letter(
-            facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
-        )
-    except LLMError as e:
-        raise HTTPException(503, str(e)) from e
-    except RuntimeError as e:
-        raise HTTPException(503, str(e)) from e
+        try:
+            letter, items, context = generate_widerspruch_letter(
+                facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
+            )
+        except LLMError as e:
+            raise HTTPException(503, str(e)) from e
+        except RuntimeError as e:
+            raise HTTPException(503, str(e)) from e
 
     if is_preview:
         preview_text = make_preview(letter)
@@ -93,35 +137,22 @@ def widerspruch_workflow(
             },
         )
 
-    validation = validate_text(letter)
     fmt = (req.format or "json").lower().strip()
+    if fmt in ("txt", "pdf"):
+        return _export_letter(letter, fmt, req.filename)
 
-    if fmt == "txt":
-        out_name = (req.filename or "widerspruch.txt").strip()
-        if not out_name.lower().endswith(".txt"):
-            out_name += ".txt"
-        return Response(
-            content=letter.encode("utf-8"),
-            media_type="text/plain; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
-        )
-
-    if fmt == "pdf":
-        pdf_bytes = text_to_pdf_bytes(letter)
-        out_name = (req.filename or "widerspruch.pdf").strip()
-        if not out_name.lower().endswith(".pdf"):
-            out_name += ".pdf"
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
-        )
-
-    quellen = build_quellen_unique(items, max_cites=8) if req.include_quellen else []
+    validation = validate_text(letter)
+    quellen = _build_quellen_safe(items, req) if not use_cache else []
     return {
         "ok": bool(validation.get("ok")),
         "text": letter,
         "validation": validation,
         "quellen": quellen,
-        "context": context if req.include_context else None,
+        "context": context if (req.include_context and not use_cache) else None,
     }
+
+
+def _build_quellen_safe(items, req):
+    if not req.include_quellen:
+        return []
+    return build_quellen_unique(items, max_cites=8)

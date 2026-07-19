@@ -15,7 +15,7 @@ from app.jobcenter import hydrate_jobcenter_from_db
 from app.models import WiderspruchWorkflowRequest
 from app.pdf.render import text_to_pdf_bytes
 from app.rag.retrieve import build_quellen_unique
-from app.routes.widerspruch import resolve_preview_download
+from app.routes.widerspruch import _export_letter, resolve_preview_download
 from app.testers.tokens import (
     app_link_for_token,
     load_testers,
@@ -46,19 +46,25 @@ def tester_widerspruch_workflow(
     if is_download:
         tester_consume_or_403(token)
 
-    facts = hydrate_jobcenter_from_db(req.facts or {})
-    k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
-    style = (req.style or "standard").lower().strip()
-    req_text = extract_user_text(req)
+    cached = (getattr(req, "letter_text", None) or "").strip()
+    use_cache = bool(cached) and (is_download or not is_preview)
 
-    try:
-        letter, items, context = generate_widerspruch_letter(
-            facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
-        )
-    except LLMError as e:
-        raise HTTPException(503, str(e)) from e
-    except RuntimeError as e:
-        raise HTTPException(503, str(e)) from e
+    if use_cache:
+        letter, items, context = cached, [], None
+    else:
+        facts = hydrate_jobcenter_from_db(req.facts or {})
+        k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
+        style = (req.style or "standard").lower().strip()
+        req_text = extract_user_text(req)
+
+        try:
+            letter, items, context = generate_widerspruch_letter(
+                facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
+            )
+        except LLMError as e:
+            raise HTTPException(503, str(e)) from e
+        except RuntimeError as e:
+            raise HTTPException(503, str(e)) from e
 
     if is_preview:
         preview_text = make_preview(letter)
@@ -67,42 +73,24 @@ def tester_widerspruch_workflow(
             media_type="text/plain; charset=utf-8",
             headers={
                 "X-Preview": "1",
+                "X-Full-Letter": "1",
                 "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
                 "Pragma": "no-cache",
             },
         )
 
-    validation = validate_text(letter)
     fmt = (req.format or "txt").lower().strip()
+    if fmt in ("txt", "pdf"):
+        return _export_letter(letter, fmt, req.filename)
 
-    if fmt == "txt":
-        out_name = (req.filename or "widerspruch.txt").strip()
-        if not out_name.lower().endswith(".txt"):
-            out_name += ".txt"
-        return Response(
-            content=letter.encode("utf-8"),
-            media_type="text/plain; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
-        )
-
-    if fmt == "pdf":
-        pdf_bytes = text_to_pdf_bytes(letter)
-        out_name = (req.filename or "widerspruch.pdf").strip()
-        if not out_name.lower().endswith(".pdf"):
-            out_name += ".pdf"
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
-        )
-
-    quellen = build_quellen_unique(items, max_cites=8) if req.include_quellen else []
+    validation = validate_text(letter)
+    quellen = build_quellen_unique(items, max_cites=8) if req.include_quellen and not use_cache else []
     return {
         "ok": bool(validation.get("ok")),
         "text": letter,
         "validation": validation,
         "quellen": quellen,
-        "context": context if req.include_context else None,
+        "context": context if (req.include_context and not use_cache) else None,
     }
 
 

@@ -34,6 +34,8 @@ class WiderspruchWorkflowRequest(BaseModel):
     include_quellen: bool = False
     include_context: bool = False
     preview: bool = False
+    # If set (e.g. from UI after Vorschau), skip LLM and export this exact letter
+    letter_text: Optional[str] = None
 
 
 class CheckoutRequest(BaseModel):
