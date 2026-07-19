@@ -413,6 +413,13 @@
     user-select: none;
     -webkit-user-select: none;
   }
+  .preview-open{
+    user-select: text;
+    -webkit-user-select: text;
+    white-space: pre-wrap;
+    max-height: 520px;
+    overflow: auto;
+  }
   .preview-fade{
     position: relative;
     max-height: 320px;

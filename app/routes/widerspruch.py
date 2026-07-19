@@ -1,4 +1,4 @@
-"""Widerspruch workflow: free preview vs paid/download export."""
+"""Widerspruch workflow: preview + download (paywall optional)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from app import config
 from app.billing.access import consume_use_or_402
 from app.config import DEFAULT_K, MAX_K
-from app.demo import check_preview_rate_limit, enforce_demo_download_policy
+from app.demo import check_preview_rate_limit, enforce_demo_download_policy, paywall_enabled
 from app.generation.guards import validate_text
 from app.generation.llm import LLMError
 from app.generation.pipeline import extract_user_text, generate_widerspruch_letter, make_preview
@@ -47,8 +47,8 @@ def widerspruch_workflow(
 ):
     uid = (req.user_id or "").strip()
     if not uid:
-        # In demo mode allow anonymous previews with a stable pseudo id
-        if config.DEMO_MODE:
+        # Open portfolio / demo: allow anonymous
+        if (not paywall_enabled()) or config.DEMO_MODE:
             uid = "demo-user"
         else:
             raise HTTPException(400, "Missing user_id")
@@ -57,13 +57,15 @@ def widerspruch_workflow(
         preview, download, bool(getattr(req, "preview", False))
     )
 
-    if is_preview:
+    # Rate-limit free generations in demo/open mode
+    if is_preview or (is_download and not paywall_enabled()):
         check_preview_rate_limit(request)
+
     if is_download:
         enforce_demo_download_policy(True)
-        if not config.DEMO_MODE:
+        # Only charge credits when paywall is explicitly enabled
+        if paywall_enabled() and not (config.DEMO_MODE and config.DEMO_ALLOW_DOWNLOAD):
             consume_use_or_402(uid)
-        # DEMO_MODE + DEMO_ALLOW_DOWNLOAD: no Stripe credit burn
 
     facts = hydrate_jobcenter_from_db(req.facts or {})
     k = max(1, min(MAX_K, int(req.k or DEFAULT_K)))
@@ -77,7 +79,6 @@ def widerspruch_workflow(
     except LLMError as e:
         raise HTTPException(503, str(e)) from e
     except RuntimeError as e:
-        # empty LLM / chroma issues
         raise HTTPException(503, str(e)) from e
 
     if is_preview:
@@ -85,7 +86,11 @@ def widerspruch_workflow(
         return Response(
             content=preview_text.encode("utf-8"),
             media_type="text/plain; charset=utf-8",
-            headers={"X-Preview": "1", "X-Demo-Mode": "1" if config.DEMO_MODE else "0"},
+            headers={
+                "X-Preview": "1",
+                "X-Full-Letter": "1" if config.FULL_LETTER_PREVIEW or not paywall_enabled() else "0",
+                "X-Demo-Mode": "1" if config.DEMO_MODE or not paywall_enabled() else "0",
+            },
         )
 
     validation = validate_text(letter)

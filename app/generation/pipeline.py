@@ -19,6 +19,7 @@ from typing import Any, Dict, Tuple
 
 from fastapi import HTTPException
 
+from app import config as app_config
 from app.config import (
     DEFAULT_K,
     MAX_K,
@@ -74,11 +75,15 @@ def extract_user_text(obj: Any) -> str:
 
 
 def make_preview(text: str) -> str:
+    """Return letter for UI. Full text when FULL_LETTER_PREVIEW (portfolio open mode)."""
     t = (text or "").strip()
     if not t:
         return ""
-    t = t[:PREVIEW_HARD_CAP]
-    limit = max(300, int(PREVIEW_CHARS or 1400))
+    if getattr(app_config, "FULL_LETTER_PREVIEW", True):
+        return t
+    hard_cap = int(getattr(app_config, "PREVIEW_HARD_CAP", PREVIEW_HARD_CAP) or 5000)
+    t = t[:hard_cap]
+    limit = max(300, int(getattr(app_config, "PREVIEW_CHARS", PREVIEW_CHARS) or 1400))
     if len(t) <= limit:
         return t
     cut = t[:limit]

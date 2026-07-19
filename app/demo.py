@@ -1,4 +1,4 @@
-"""Portfolio DEMO_MODE helpers: open preview, optional download, IP rate limits."""
+"""Portfolio open-access helpers + optional rate limits (when DEMO_MODE)."""
 
 from __future__ import annotations
 
@@ -26,8 +26,19 @@ def client_ip(request: Request | None) -> str:
     return "unknown"
 
 
+def paywall_enabled() -> bool:
+    return bool(config.PAYWALL_ENABLED)
+
+
+def downloads_open() -> bool:
+    """True when anyone can download without Stripe/beta."""
+    if not config.PAYWALL_ENABLED:
+        return True
+    return bool(config.DEMO_MODE and config.DEMO_ALLOW_DOWNLOAD)
+
+
 def check_preview_rate_limit(request: Request | None) -> None:
-    """Enforce DEMO_MAX_PREVIEWS_PER_IP within DEMO_RATE_WINDOW_SEC."""
+    """Enforce DEMO_MAX_PREVIEWS_PER_IP within DEMO_RATE_WINDOW_SEC (demo only)."""
     if not config.DEMO_MODE:
         return
     ip = client_ip(request)
@@ -42,33 +53,41 @@ def check_preview_rate_limit(request: Request | None) -> None:
         if len(q) >= limit:
             raise HTTPException(
                 429,
-                f"Demo rate limit: max {limit} previews per hour for this IP. "
+                f"Demo rate limit: max {limit} generations per hour for this IP. "
                 "See samples/letter_example.txt or try later.",
             )
         q.append(now)
 
 
 def enforce_demo_download_policy(is_download: bool) -> None:
-    if not config.DEMO_MODE or not is_download:
+    """No-op when paywall is off. With paywall, DEMO_ALLOW_DOWNLOAD must be true."""
+    if not is_download:
         return
-    if not config.DEMO_ALLOW_DOWNLOAD:
+    if not config.PAYWALL_ENABLED:
+        return
+    if config.DEMO_MODE and config.DEMO_ALLOW_DOWNLOAD:
+        return
+    if config.DEMO_MODE and not config.DEMO_ALLOW_DOWNLOAD:
         raise HTTPException(
             403,
-            "Download is disabled in DEMO_MODE. Use preview, or set DEMO_ALLOW_DOWNLOAD=true.",
+            "Download is disabled in DEMO_MODE. Set DEMO_ALLOW_DOWNLOAD=true or PAYWALL_ENABLED=false.",
         )
 
 
 def public_config() -> dict:
     """Safe config for UI (no secrets)."""
+    open_access = not config.PAYWALL_ENABLED
     return {
-        "demo_mode": config.DEMO_MODE,
-        "demo_allow_download": config.DEMO_ALLOW_DOWNLOAD,
-        "demo_banner": config.DEMO_BANNER if config.DEMO_MODE else "",
+        "demo_mode": config.DEMO_MODE or open_access,
+        "demo_allow_download": downloads_open(),
+        "full_letter_preview": bool(config.FULL_LETTER_PREVIEW) or open_access,
+        "paywall_enabled": config.PAYWALL_ENABLED,
+        "demo_banner": config.DEMO_BANNER if (config.DEMO_MODE or open_access) else "",
         "llm_provider": config.LLM_PROVIDER,
         "llm_model": (
             config.HF_MODEL
             if config.LLM_PROVIDER in ("hf", "huggingface", "inference")
             else config.OLLAMA_MODEL
         ),
-        "payments_enabled": (not config.DEMO_MODE),
+        "payments_enabled": bool(config.PAYWALL_ENABLED) and (not config.DEMO_MODE),
     }

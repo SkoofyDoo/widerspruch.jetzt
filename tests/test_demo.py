@@ -3,6 +3,7 @@ import pytest
 
 from app import demo as demo_mod
 from app import config
+from app.generation.pipeline import make_preview
 
 
 def test_public_config_keys():
@@ -10,9 +11,12 @@ def test_public_config_keys():
     assert "demo_mode" in cfg
     assert "llm_provider" in cfg
     assert "payments_enabled" in cfg
+    assert "paywall_enabled" in cfg
+    assert "full_letter_preview" in cfg
 
 
-def test_download_blocked_in_demo(monkeypatch):
+def test_download_blocked_only_when_paywall_and_demo_forbids(monkeypatch):
+    monkeypatch.setattr(config, "PAYWALL_ENABLED", True)
     monkeypatch.setattr(config, "DEMO_MODE", True)
     monkeypatch.setattr(config, "DEMO_ALLOW_DOWNLOAD", False)
     with pytest.raises(HTTPException) as ei:
@@ -20,10 +24,27 @@ def test_download_blocked_in_demo(monkeypatch):
     assert ei.value.status_code == 403
 
 
+def test_download_open_when_paywall_off(monkeypatch):
+    monkeypatch.setattr(config, "PAYWALL_ENABLED", False)
+    monkeypatch.setattr(config, "DEMO_MODE", True)
+    monkeypatch.setattr(config, "DEMO_ALLOW_DOWNLOAD", False)
+    demo_mod.enforce_demo_download_policy(True)  # no raise
+
+
 def test_download_allowed_when_enabled(monkeypatch):
+    monkeypatch.setattr(config, "PAYWALL_ENABLED", True)
     monkeypatch.setattr(config, "DEMO_MODE", True)
     monkeypatch.setattr(config, "DEMO_ALLOW_DOWNLOAD", True)
     demo_mod.enforce_demo_download_policy(True)  # no raise
+
+
+def test_full_letter_preview(monkeypatch):
+    long = "A" * 2000 + "\n\nEnde."
+    monkeypatch.setattr(config, "FULL_LETTER_PREVIEW", True)
+    assert make_preview(long) == long.strip()
+    monkeypatch.setattr(config, "FULL_LETTER_PREVIEW", False)
+    short = make_preview(long)
+    assert "Freischaltung" in short or len(short) < len(long)
 
 
 def test_preview_rate_limit(monkeypatch):

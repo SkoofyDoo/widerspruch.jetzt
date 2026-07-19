@@ -57,16 +57,28 @@ HF_API_URL = os.getenv(
 HF_TIMEOUT = int(os.getenv("HF_TIMEOUT", "90"))
 HF_MAX_TOKENS = int(os.getenv("HF_MAX_TOKENS", "1200"))
 
-# --- Public portfolio demo ---
-DEMO_MODE = (os.getenv("DEMO_MODE") or "false").strip().lower() in ("1", "true", "yes", "on")
-DEMO_ALLOW_DOWNLOAD = (os.getenv("DEMO_ALLOW_DOWNLOAD") or "false").strip().lower() in (
+# --- Public portfolio demo / paywall ---
+# Portfolio default: OPEN access (full letter + free download). Set PAYWALL_ENABLED=true to re-enable Stripe gate.
+PAYWALL_ENABLED = (os.getenv("PAYWALL_ENABLED") or "false").strip().lower() in (
     "1", "true", "yes", "on",
 )
-DEMO_MAX_PREVIEWS_PER_IP = int(os.getenv("DEMO_MAX_PREVIEWS_PER_IP", "20"))
+# DEMO_MODE defaults ON when paywall is off (banner + open access helpers)
+_demo_default = "true" if not PAYWALL_ENABLED else "false"
+DEMO_MODE = (os.getenv("DEMO_MODE") or _demo_default).strip().lower() in ("1", "true", "yes", "on")
+# Free download defaults ON when paywall is off
+_dl_default = "true" if not PAYWALL_ENABLED else "false"
+DEMO_ALLOW_DOWNLOAD = (os.getenv("DEMO_ALLOW_DOWNLOAD") or _dl_default).strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# Full letter in "preview" response (no 🔒 truncation) when paywall off
+FULL_LETTER_PREVIEW = (os.getenv("FULL_LETTER_PREVIEW") or ("true" if not PAYWALL_ENABLED else "false")).strip().lower() in (
+    "1", "true", "yes", "on",
+)
+DEMO_MAX_PREVIEWS_PER_IP = int(os.getenv("DEMO_MAX_PREVIEWS_PER_IP", "30"))
 DEMO_RATE_WINDOW_SEC = int(os.getenv("DEMO_RATE_WINDOW_SEC", "3600"))
 DEMO_BANNER = os.getenv(
     "DEMO_BANNER",
-    "Portfolio-Demo · keine Rechtsberatung · rate-limited · powered by RAG + LLM",
+    "Portfolio-Demo · voller Text + Download gratis · keine Rechtsberatung · rate-limited",
 )
 
 E5_QUERY_PREFIX = "query: "

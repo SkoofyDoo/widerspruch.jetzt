@@ -41,9 +41,9 @@
       <div>
         <h1>Erstelle einen sauberen Widerspruch ans Jobcenter – in Minuten.</h1>
         <p>
-          1) Daten eintragen → 2) Vorschau (gratis) → 3) Freischalten → 4) Download & senden
+          1) Daten eintragen → 2) Vorschau → 3) Download (TXT/PDF)
           <br>
-          <span style="opacity:.9">Hinweis: keine Rechtsberatung. Bitte Fakten & Fristen prüfen.</span>
+          <span style="opacity:.9">Hinweis: keine Rechtsberatung. Bitte Fakten & Fristen prüfen. Portfolio-Demo: voller Text gratis.</span>
         </p>
 
         <div class="hero-badges">
@@ -185,24 +185,22 @@
       <div class="card">
         <div class="card-head">
           <h2>Vorschau</h2>
-          <small>Paywall-Preview</small>
+          <small>Volltext · Download gratis (Demo)</small>
         </div>
         <div class="card-body">
-          <pre id="preview" class="preview-locked preview-fade">Clicke auf "Vorschau anzeigen" für Vorschau oder 
-            auf "Widerspruch herunterladen" sofort Download 
-          </pre>
+          <pre id="preview" class="preview-open">Klicke auf „Vorschau anzeigen“ — voller Text, oder lade TXT/PDF herunter.</pre>
 
-          <button id="paywallCta" class="paywall-cta" type="button" style="display:none;">
+          <button id="paywallCta" class="paywall-cta" type="button" style="display:none;" aria-hidden="true">
             <div class="left">
               <div class="badge">🔒</div>
               <div class="txt">
                 <div class="title">Vollständiger Text nach Freischaltung</div>
-                <div class="sub">1 Kredit nur 9,90€</div>
+                <div class="sub">Optional (PAYWALL_ENABLED)</div>
               </div>
             </div>
             <div class="right">
-              <div class="price">9,90 €</div>
-              <div class="action">Jetzt freischalten →</div>
+              <div class="price">—</div>
+              <div class="action">Freischalten</div>
             </div>
           </button>
 
@@ -211,12 +209,12 @@
           </div>
 
           <div class="preview-actions">
-            <button id="btnCopy" class="mini-btn" type="button" disabled title="Aus Paywall-Gründen deaktiviert">Text kopieren</button>
+            <button id="btnCopy" class="mini-btn" type="button" disabled title="In Zwischenablage kopieren">Text kopieren</button>
             <button id="btnClear" class="mini-btn" type="button">Felder leeren</button>
           </div>
 
           <div class="help" style="margin-top:10px;">
-            Hinweis: Vorschau ist nicht kopierbar. Nach Freischaltung startet Download automatisch.
+            Portfolio-Demo: voller Text und Download ohne Zahlung. Keine Rechtsberatung.
           </div>
         </div>
       </div>

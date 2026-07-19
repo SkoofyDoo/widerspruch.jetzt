@@ -485,8 +485,16 @@
     setDisabled(el.btnPreview, !st.allOk);
     setDisabled(el.ctaMobile, !st.allOk);
 
-    // download only if beta and valid
-    setDisabled(el.btnDownload, !(st.allOk && BETA));
+    // download: open access (no paywall) OR beta token
+    setDisabled(el.btnDownload, !(st.allOk && canDownload()));
+  }
+
+  function canDownload() {
+    // Open portfolio: payments off / demo allows download
+    if (APP_CFG && (APP_CFG.payments_enabled === false || APP_CFG.demo_allow_download === true || APP_CFG.paywall_enabled === false)) {
+      return true;
+    }
+    return !!BETA;
   }
 
   function buildPayload(extra = {}) {
@@ -616,9 +624,15 @@
 
       setStatus("ok", "Vorschau bereit.");
       toast("Vorschau bereit.");
-      if (el.preview) el.preview.textContent = (typeof data === "string") ? data : JSON.stringify(data, null, 2);
-
-      if (!BETA && el.paywallCta) el.paywallCta.style.display = "block";
+      if (el.preview) {
+        el.preview.textContent = (typeof data === "string") ? data : JSON.stringify(data, null, 2);
+        el.preview.classList.remove("preview-locked");
+        el.preview.classList.add("preview-open");
+      }
+      if (el.btnCopy) setDisabled(el.btnCopy, false);
+      // Never show paywall CTA when open access
+      if (el.paywallCta && canDownload()) el.paywallCta.style.display = "none";
+      else if (!BETA && el.paywallCta && APP_CFG.payments_enabled) el.paywallCta.style.display = "block";
     } catch (e) {
       const msg =
         (e?.message === "timeout" || String(e).includes("timeout") || String(e).includes("AbortError"))
@@ -639,14 +653,14 @@
   }
 
   // ---------------------------
-  // Download (beta only)
+  // Download (open demo or beta)
   // ---------------------------
   async function doDownload() {
     if (!lastState.allOk) {
       toast("Bitte Pflichtfelder ausfüllen.");
       return;
     }
-    if (!BETA) {
+    if (!canDownload()) {
       if (el.paywallCta) el.paywallCta.style.display = "block";
       toast("Bitte zuerst freischalten.");
       return;
@@ -720,8 +734,7 @@
       if (el.preview) el.preview.textContent = msg;
     } finally {
       timeout.done();
-      // ✅ вернуть кнопку в корректное состояние (а не всегда disabled)
-      setDisabled(el.btnDownload, !(lastState.allOk && BETA));
+      setDisabled(el.btnDownload, !(lastState.allOk && canDownload()));
     }
   }
 
@@ -788,36 +801,41 @@
   // ---------------------------
   // Public config / demo banner
   // ---------------------------
-  let APP_CFG = { demo_mode: false, demo_allow_download: false, payments_enabled: true };
+  let APP_CFG = {
+    demo_mode: true,
+    demo_allow_download: true,
+    payments_enabled: false,
+    paywall_enabled: false,
+    full_letter_preview: true,
+  };
 
   async function loadPublicConfig() {
     try {
       const res = await fetch("/config");
       if (!res.ok) return;
-      APP_CFG = await res.json();
+      APP_CFG = Object.assign(APP_CFG, await res.json());
     } catch {
       return;
     }
 
+    const open = !APP_CFG.paywall_enabled || !APP_CFG.payments_enabled || APP_CFG.demo_allow_download;
+
     const banner = $("demoBanner");
-    if (banner && APP_CFG.demo_mode && APP_CFG.demo_banner) {
+    if (banner && (APP_CFG.demo_mode || open) && APP_CFG.demo_banner) {
       banner.hidden = false;
       banner.textContent = APP_CFG.demo_banner;
     }
 
-    // Hide pricing/paywall noise in portfolio demo
-    if (APP_CFG.demo_mode) {
+    // Hide pricing/paywall when open portfolio access
+    if (open || APP_CFG.demo_mode) {
       const pricing = $("linkPricing");
       if (pricing) pricing.style.display = "none";
       if (el.paywallCta) el.paywallCta.style.display = "none";
       if (el.pillAccess && !BETA) {
-        el.pillAccess.innerHTML = `<span class="dot"></span> Demo (Preview frei)`;
-      }
-      // Download only if server allows it
-      if (!APP_CFG.demo_allow_download && el.btnDownload) {
-        el.btnDownload.title = "Download in DEMO_MODE deaktiviert — bitte Vorschau nutzen";
+        el.pillAccess.innerHTML = `<span class="dot"></span> Open Demo (Volltext + Download)`;
       }
     }
+    onInput();
   }
 
   // ---------------------------
@@ -863,9 +881,26 @@
     // whoami
     loadWhoami();
 
-    if (!BETA && el.paywallCta && !APP_CFG.demo_mode) el.paywallCta.style.display = "none";
+    if (el.paywallCta && canDownload()) el.paywallCta.style.display = "none";
 
-    setStatus("info", APP_CFG.demo_mode ? "Demo bereit (Preview ohne Zahlung)." : "Bereit.");
+    // enable copy when open access
+    el.btnCopy?.addEventListener("click", async () => {
+      const t = el.preview?.textContent || "";
+      if (!t || t.startsWith("Klicke")) return;
+      try {
+        await navigator.clipboard.writeText(t);
+        toast("Text kopiert.");
+      } catch {
+        toast("Kopieren fehlgeschlagen.");
+      }
+    });
+
+    setStatus(
+      "info",
+      canDownload()
+        ? "Demo bereit: voller Text + Download gratis."
+        : "Bereit."
+    );
   }
 
   document.addEventListener("DOMContentLoaded", init);
