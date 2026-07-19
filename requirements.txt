@@ -4,6 +4,10 @@ uvicorn[standard]==0.30.6
 pydantic==2.9.2
 python-dotenv==1.0.1
 requests==2.32.3
+# Pin to avoid RequestsDependencyWarning with chromadb stack
+urllib3>=1.26,<2.3
+charset-normalizer>=3.0,<4
+
 
 # RAG / embeddings
 chromadb==0.5.5

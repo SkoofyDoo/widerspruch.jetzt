@@ -9,9 +9,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Reduce noisy telemetry from vector DB / embedding libs
-os.environ.setdefault("ANONYMIZED_TELEMETRY", "FALSE")
-os.environ.setdefault("CHROMA_TELEMETRY", "FALSE")
+# Silence Chroma/PostHog telemetry (benign errors like ClientStartEvent capture())
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY"] = "False"
+os.environ["POSTHOG_DISABLED"] = "1"
+os.environ["SCARF_NO_ANALYTICS"] = "true"
+
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"

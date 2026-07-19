@@ -1,11 +1,21 @@
 # Deploy & demo runbook
 
+## Status checklist (portfolio)
+
+| Item | You do |
+|------|--------|
+| Code showcase | already in repo |
+| HF token | https://huggingface.co/settings/tokens |
+| Local DEMO preview | steps below |
+| Public host | Railway (recommended) |
+| Live demo link in README | after deploy |
+| Loom video | optional but recommended |
+
 ## What you need
 
-1. **Prebuilt Chroma index** in `data/chroma` (from `src/` pipeline once)
-2. **HuggingFace token** with permission to call Inference Providers  
-   https://huggingface.co/settings/tokens
-3. Docker (optional but recommended)
+1. **Prebuilt Chroma index** in `data/chroma` (~10MB if already built)
+2. **HuggingFace token** — https://huggingface.co/settings/tokens
+3. Docker (optional) + account on **Railway** — https://railway.app
 
 ## A) Local demo with HuggingFace (no Ollama)
 
@@ -72,6 +82,23 @@ Then put in README:
 ```markdown
 **Live demo:** https://your-demo-host/ui/
 ```
+
+## Railway 502 "Application failed to respond"
+
+This is almost always **port mismatch** or the process died.
+
+1. **Deploy Logs** must end with:
+   `Starting uvicorn on 0.0.0.0:XXXX` and `Application startup complete`
+2. **Settings → Networking**
+   - Generate Domain
+   - **Target port** = same number as `XXXX` in the log (Railway often sets this via `PORT` env)
+3. **Variables**
+   - Do **not** hardcode a wrong `PORT` (delete custom `PORT` and redeploy so Railway injects it)
+   - Keep `HF_TOKEN`, `DEMO_MODE=true`, `LLM_PROVIDER=huggingface`
+4. Open only:
+   - `https://YOUR.up.railway.app/live`  → must return `{"ok":true,"live":true}`
+   - then `/ui/`
+5. If `/live` works but `/health` is slow/fails: missing `data/chroma` or OOM loading embeddings (upgrade RAM or mount index).
 
 ## Checklist before sharing with recruiters
 
