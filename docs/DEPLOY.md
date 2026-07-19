@@ -83,9 +83,29 @@ Then put in README:
 **Live demo:** https://your-demo-host/ui/
 ```
 
+## Why Vorschau showed "Fehler" on Railway (diagnosed)
+
+From production logs:
+
+| Request | Result |
+|---------|--------|
+| `GET /`, `/ui`, `/live`, `/config` | **200** |
+| `GET /health` | **502** after ~9s (`connection closed unexpectedly`) |
+| `POST /widerspruch/workflow` | **502** after ~9s — same crash |
+
+Cause: first RAG call loads **sentence-transformers/torch** → process dies on Hobby **1GB RAM**. UI only shows generic **Fehler**.
+
+Fix shipped in code:
+
+1. **Remote HF embeddings** (`EMBEDDING_PROVIDER=huggingface`) — no local torch  
+2. **Prebuilt `data/chroma` + `jobcenter_de.json` in Docker image**  
+3. Lighter `requirements.txt` without sentence-transformers  
+
+After push + redeploy, Vorschau should reach HF LLM without OOM.
+
 ## Railway 502 "Application failed to respond"
 
-This is almost always **port mismatch** or the process died.
+This is almost always **port mismatch**, **OOM on embedding load**, or the process died.
 
 1. **Deploy Logs** must end with:
    `Starting uvicorn on 0.0.0.0:XXXX` and `Application startup complete`

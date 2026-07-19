@@ -1,0 +1,7 @@
+# Local development + offline index pipeline (heavy: torch via sentence-transformers)
+-r requirements.txt
+
+beautifulsoup4==4.12.3
+lxml==5.3.0
+tqdm==4.66.5
+sentence-transformers==3.0.1

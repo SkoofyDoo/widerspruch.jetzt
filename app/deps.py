@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from app.config import CHROMA_DIR, COLLECTION, EMBEDDING_MODEL
+from app.config import CHROMA_DIR, COLLECTION
+from app.rag.embeddings import get_embedding_function
 
 try:
     import stripe as stripe_mod
@@ -15,17 +16,11 @@ stripe = stripe_mod
 
 _client: Any = None
 _col: Any = None
-_embed_fn: Any = None
 _init_error: Optional[str] = None
 
 
 def get_embed_fn():
-    global _embed_fn
-    if _embed_fn is None:
-        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-
-        _embed_fn = SentenceTransformerEmbeddingFunction(model_name=EMBEDDING_MODEL)
-    return _embed_fn
+    return get_embedding_function()
 
 
 def get_collection():
@@ -44,7 +39,9 @@ def get_collection():
     except Exception as e:
         _init_error = (
             f"Chroma collection '{COLLECTION}' not found or failed to load. "
-            f"CHROMA_DIR='{CHROMA_DIR}'. Run: python src/index.py. Original error: {e}"
+            f"CHROMA_DIR='{CHROMA_DIR}'. "
+            f"Ensure data/chroma is in the image/volume and EMBEDDING_PROVIDER matches index. "
+            f"Original error: {e}"
         )
         raise RuntimeError(_init_error) from e
 

@@ -14,3 +14,7 @@ docs
 tests
 *.md
 !README.md
+# Keep data/chroma + jobcenter for image (see Dockerfile)
+data/raw
+data/cleaned
+data/chunks.jsonl

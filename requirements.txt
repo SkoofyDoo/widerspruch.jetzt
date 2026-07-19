@@ -1,22 +1,14 @@
-# Core API
+# Production / Railway runtime (NO sentence-transformers/torch — use HF remote embeddings)
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.2
 python-dotenv==1.0.1
 requests==2.32.3
-# Pin to avoid RequestsDependencyWarning with chromadb stack
 urllib3>=1.26,<2.3
 charset-normalizer>=3.0,<4
 
-
-# RAG / embeddings
+# Vector store (embeddings computed remotely via HuggingFace when EMBEDDING_PROVIDER=huggingface)
 chromadb==0.5.5
-sentence-transformers==3.0.1
-
-# Ingestion pipeline (src/)
-beautifulsoup4==4.12.3
-lxml==5.3.0
-tqdm==4.66.5
 
 # Optional product features
 stripe==11.1.1

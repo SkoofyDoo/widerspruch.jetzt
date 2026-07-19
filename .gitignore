@@ -13,12 +13,13 @@ __pycache__/
 dist/
 build/
 
-# Runtime / index data (rebuild via src/ pipeline)
+# Runtime junk under data/ — but keep prebuilt index for deploy
 data/*
 !data/.gitkeep
+!data/chroma/
+!data/chroma/**
+!data/jobcenter_de.json
 
 # Local secrets / OS junk
 .DS_Store
 Thumbs.db
-
-

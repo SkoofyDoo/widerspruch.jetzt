@@ -600,7 +600,14 @@
 
       const data = await readTextOrJson(res);
       if (!res.ok) {
-        const msg = (typeof data === "string") ? data : (data?.detail || "Fehler");
+        let msg = "Fehler";
+        if (typeof data === "string" && data.trim()) msg = data;
+        else if (data?.detail) msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        else if (res.status === 502 || res.status === 503) {
+          msg = `Server ${res.status}: RAG/LLM nicht bereit (oft: kein Index, OOM oder HF-Token). Prüfe /health und Railway Logs.`;
+        } else {
+          msg = `HTTP ${res.status}`;
+        }
         setStatus("err", msg);
         toast(msg);
         if (el.preview) el.preview.textContent = msg;

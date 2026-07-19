@@ -28,7 +28,11 @@ APP_URL = (os.getenv("APP_URL") or "http://127.0.0.1:8008").strip().rstrip("/")
 
 CHROMA_DIR = str(DATA_DIR / "chroma")
 COLLECTION = os.getenv("CHROMA_COLLECTION", "laws_de")
-EMBEDDING_MODEL = "intfloat/multilingual-e5-base"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-base")
+# auto | local | huggingface — auto uses HF when HF_TOKEN is set (Railway-safe)
+EMBEDDING_PROVIDER = (os.getenv("EMBEDDING_PROVIDER") or "auto").strip().lower()
+# Optional override for feature-extraction endpoint
+HF_EMBED_API_URL = (os.getenv("HF_EMBED_API_URL") or "").strip()
 
 JOB_CENTER_JSON = str(DATA_DIR / "jobcenter_de.json")
 SUBS_DB = str(DATA_DIR / "subscriptions.json")
