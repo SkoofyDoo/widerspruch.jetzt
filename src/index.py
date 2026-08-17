@@ -12,7 +12,7 @@ CHROMA_DIR = os.path.join("data", "chroma")
 COLLECTION = "laws_de"
 
 def fp(rec):
-    # fingerprint по смыслу: law+paragraph+text
+    
     law = rec.get("law","")
     par = rec.get("paragraph","")
     text = rec.get("text","")
@@ -28,7 +28,7 @@ def main():
 
     embed_fn = SentenceTransformerEmbeddingFunction(model_name="intfloat/multilingual-e5-base")
 
-    # ЖЁСТКО пересоздаём коллекцию
+    
     try:
         client.delete_collection(COLLECTION)
     except Exception:

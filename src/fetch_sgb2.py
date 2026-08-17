@@ -29,11 +29,7 @@ def normalize_href(href: str) -> str:
 
 
 def is_einzelnorm_href(href: str) -> bool:
-    """
-    На gesetze-im-internet.de параграфы обычно как:
-      __1.html
-      __2.html
-    """
+   
     href = normalize_href(href)
     if not href or not href.endswith(".html"):
         return False

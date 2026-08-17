@@ -1,0 +1,46 @@
+[
+  {
+    "id": "case_001",
+    "case": "Jobcenter hat Bürgergeld um 30% für drei Monate gekürzt wegen Pflichtverletzung; Person bestreitet das und will dagegen vorgehen.",
+    "query": "Bürgergeld Minderung Pflichtverletzung Jobcenter Kürzung ",
+    "relevant": [
+      { "law": "SGB II", "paragraph": "31" },
+      { "law": "SGB II", "paragraph": "31a" },
+      { "law": "SGB II", "paragraph": "31b" }
+    ],
+    "confidence": "medium",
+    "notes": "Seed self-label after reading §31. 31a/31b may co-occur; v1 hit = § 31 present. Not legal advice."
+  },
+  {
+    "id": "case_002",
+    "case": "Kürzung wegen angeblichen Meldeversäumnisses; Person war krank, hat Bescheid, will Widerspruch.",
+    "query": "Bürgergeld Kürzung Meldeversäumnis Meldetermin Jobcenter",
+    "relevant": [{ "law": "SGB II", "paragraph": "32" }],
+    "confidence": "medium",
+    "notes": "Seed self-label. Primary anchor Meldeversäumnis § 32 SGB II. Procedural Widerspruch (SGB X) out of scope for v1 hit. Not legal advice."
+  },
+  {
+    "id": "case_003",
+    "case": "Jobcenter verlangt Auskünfte von Vermieter und Ex-Partner zur Wohnsituation; Unterlagen wurden bereits übersandt; Frage nach Rechtsgrundlage und ob Zustimmung nötig ist.",
+    "query": "Jobcenter Auskunftspflicht Dritte Vermieter Partner Wohnsituation",
+    "relevant": [{ "law": "SGB II", "paragraph": "60" }],
+    "confidence": "medium",
+    "notes": "Self-label pending: open SGB II Auskunft/*Dritte* in corpus; only paragraphs present in index. Procedural remedies out of scope for v1 hit. Not legal advice."
+  },
+  {
+    "id": "case_004",
+    "case": "Person möchte Einsicht in die komplette Akte beim Jobcenter im Bürgergeld-Verfahren; fragt nach Umfang und Rechtsgrundlage sowie Antrag.",
+    "query": "Akteneinsicht Jobcenter Akte Antrag Rechtsgrundlage SGB X",
+    "relevant": [{ "law": "SGB X", "paragraph": "25" }],
+    "confidence": "medium",
+    "notes": "Seed: procedural Akteneinsicht. Primary anchor § 25 SGB X after corpus check. Application form details out of scope for v1 hit. Not legal advice."
+  },
+  {
+    "id": "case_005",
+    "case": "Bescheid vom Jobcenter wirkt schwer fehlerhaft (fehlende Angaben, unverständliche Begründung); Frage ob von Anfang an nichtig und was zu tun ist.",
+    "query": "Bescheid nichtig Verwaltungsakt Jobcenter Begründung Fehler unwirksam",
+    "relevant": [{ "law": "SGB X", "paragraph": "40" }],
+    "confidence": "medium",
+    "notes": "Seed: Nichtigkeit VA → § 40 SGB X after corpus check. Remedies/Widerspruch frist not required for v1 hit. Not legal advice."
+  }
+]

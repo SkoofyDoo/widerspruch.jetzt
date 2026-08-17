@@ -57,7 +57,7 @@ def main():
 
         cleaned = extract_main_text(html)
 
-        rel = os.path.relpath(path, RAW_ROOT)  # sgb2/xxx.html или sgbx/xxx.html
+        rel = os.path.relpath(path, RAW_ROOT) 
         out_fn = rel.replace(os.sep, "__").replace(".html", ".txt")
 
         with open(os.path.join(OUT_DIR, out_fn), "w", encoding="utf-8") as f:

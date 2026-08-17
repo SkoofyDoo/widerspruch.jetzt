@@ -22,11 +22,8 @@ def guess_law_and_paragraph(filename: str):
 
     if low.startswith("sgb2__"):
         law = "SGB II"
-        # SGB II с gesetze-im-internet: иногда есть "__1" в исходных href, но в имени файла это теряется.
-        # Можно попробовать вытащить § из текста позже, если захочешь.
     elif low.startswith("sgbx__"):
         law = "SGB X"
-        # вытащим номер параграфа из "SGBX_12_" в имени
         m = re.search(r"__SGBX_(\d+)_", filename)
         if m:
             paragraph = f"§ {int(m.group(1))}"

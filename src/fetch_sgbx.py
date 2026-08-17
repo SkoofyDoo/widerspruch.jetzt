@@ -62,7 +62,7 @@ def main():
     html = fetch(START)
     links = extract_links(html)
 
-    # если вдруг на 1-й странице мало ссылок — попробуем собрать из первых 10 страниц
+    
     if len(links) < 20:
         print("Low link count from START; scanning first 10 pages...")
         agg = set()
@@ -72,7 +72,7 @@ def main():
                 agg.add(u)
         links = sorted(agg, key=lambda u: int(os.path.basename(urlparse(u).path).split(".")[0]))
 
-    # если всё равно мало — можно просто качать диапазон
+    
     if len(links) < 20:
         print("Still low links. Fallback: download pages 1..200 until 404.")
         links = []
@@ -86,7 +86,6 @@ def main():
         try:
             page_html = fetch(url)
         except Exception:
-            # для fallback режима (1..200) 404 означает "кончилось"
             break
 
         soup = BeautifulSoup(page_html, "lxml")

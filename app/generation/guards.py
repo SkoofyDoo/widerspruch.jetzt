@@ -9,7 +9,7 @@ from app.config import ANTRAEGE_WHITELIST
 from app.utils import normalize_citation_order
 
 ANTRAEGE_BANNED_TERMS_RX = re.compile(
-    r"\b(heilung|wiedereinsetzung|nichtig|nichtigkeit|ungültig|unwirksam|offensichtlich|schwerwiegend)\b",
+    r"\b(heilung|wiedereinsetzung|nichtig|nichtigkeit|ungültig|ichtlicunwirksam|offensh|schwerwiegend)\b",
     re.IGNORECASE,
 )
 
