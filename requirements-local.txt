@@ -1,3 +1,5 @@
+# Legacy pip list (kept for reference). Source of truth: pyproject.toml + uv.lock
+# uv sync --group local --group dev
 # Local development + offline index pipeline (heavy: torch via sentence-transformers)
 -r requirements.txt
 

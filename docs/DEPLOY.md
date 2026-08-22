@@ -32,8 +32,8 @@ copy .env.example .env   # Windows
 # data/chroma  <- run src/fetch_* + clean + chunk + index once
 
 # 3) run
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8008
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8008
 ```
 
 Open http://127.0.0.1:8008/ui/ → fill form → **Vorschau**.
@@ -99,7 +99,7 @@ Fix shipped in code:
 
 1. **Remote HF embeddings** (`EMBEDDING_PROVIDER=huggingface`) — no local torch  
 2. **Prebuilt `data/chroma` + `jobcenter_de.json` in Docker image**  
-3. Lighter `requirements.txt` without sentence-transformers  
+3. Lighter runtime image (`uv sync --frozen --no-dev`) without sentence-transformers  
 
 After push + redeploy, Vorschau should reach HF LLM without OOM.
 

@@ -1,3 +1,5 @@
+# Legacy pip list (kept for reference). Source of truth: pyproject.toml + uv.lock
+# uv sync --group dev
 -r requirements.txt
 pytest==8.3.3
 httpx==0.27.2
