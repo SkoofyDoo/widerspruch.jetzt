@@ -1,6 +1,3 @@
-import os
-
-import chromadb 
 import re
 from dotenv import load_dotenv
 
@@ -8,24 +5,18 @@ from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_core.documents import Document
-from chromadb.utils.embedding_functions import create_langchain_embedding
-from chromadb.config import Settings
+
+
+from chroma_store import get_client, open_collection
 
 from ingest_config import  (
     ChunkMeta,
     CLEANED_DIR,
-    CHROMA_DIR,
-
     EMBEDDING_MODEL,
     EMBEDDINGS_BASE_URL,
-
     MAX_CHARS_ONE_CHUNK,
     ABSATZ_SPLIT,
     CLEANED_GLOB,
-
-
-    COLLECTION_NAME,
-    COLLECTION_METADATA,
     REBUILD,
     EMBED_BATCH_SIZE)
 
@@ -40,10 +31,10 @@ print("=" * 70)
 #========================================
 # Embeddings 
 #========================================
-embeddings = OllamaEmbeddings(
-    model = EMBEDDING_MODEL,
-    base_url = EMBEDDINGS_BASE_URL,
-)
+# embeddings = OllamaEmbeddings(
+#     model = EMBEDDING_MODEL,
+#     base_url = EMBEDDINGS_BASE_URL,
+# )
 
 # ========================================
 # TEXT LOADER
@@ -59,18 +50,6 @@ loader = DirectoryLoader(
 documents = loader.load()
 
 print(f"[TEXT LOADER]: Anzahl der Dokumente: {len(documents)}")
-
-
-# ================================================
-# METADATA AUS DEM TEXT NAME, GESETZT, PARAGRAPH, ABSATZ
-# ================================================
-# def meta_from_source(doc: Document) -> dict:
-#     text = doc.page_content.strip()
-#     meta = ChunkMeta.from_document(doc.metadata["source"], text)
-#     md = meta.as_dict()
-    
-#     return md
-
 
 
 # ================================================
@@ -122,33 +101,7 @@ def chunking(documents: list[Document])-> list[Document]:
 # CHROMA
 # ========================================
 
-def get_client():
-    """ChromaDB Client"""
-    os.makedirs(str(CHROMA_DIR), exist_ok=True)
-    print("[CHROMA]: Connection..")
-    client = chromadb.PersistentClient(
-        path = str(CHROMA_DIR),
-        settings = Settings(anonymized_telemetry=False)
-    )
-    print(f"[CHROMA]: Connected {client}")
-    return client
 
-def open_collection(client):
-    """Get or Create Collection"""
-    chroma_ef = create_langchain_embedding(embeddings)
-    if REBUILD:
-        try:
-            client.delete_collection("wdjetzt")
-        except Exception:
-            pass
-        
-    collection = client.get_or_create_collection (
-        name = COLLECTION_NAME,
-        embedding_function = chroma_ef,
-        metadata = COLLECTION_METADATA,      
-    )
-    print(f"[CHROMA]: {collection}, Länge: {collection.count()}")
-    return collection
 
 def add_chunks(collection, chunks):
     """Chunks und Metadata zur Collection hinzufügen"""
@@ -179,8 +132,7 @@ def add_chunks(collection, chunks):
 
 def main():
     chunks = chunking(documents)
-    client = get_client()
-    collection = open_collection(client)
+    collection = open_collection(rebuild=REBUILD)
     if REBUILD or collection.count() == 0:
         add_chunks(collection, chunks)
 

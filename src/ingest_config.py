@@ -20,8 +20,7 @@ ABSATZ_SPLIT = re.compile(r"\n(?=\(\d+[a-z]?\))")
 CLEANED_GLOB = "sgb*.txt"
 
 
-COLLECTION_NAME = "wdjetzt"
-COLLECTION_METADATA = {"hnsw:space" : "cosine"}
+
 REBUILD = True
 EMBED_BATCH_SIZE = 32
 
