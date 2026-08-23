@@ -19,6 +19,4 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Unit tests
         run: pytest -q
-        env:
-          # Keep tests offline; pure logic only
-          ANONYMIZED_TELEMETRY: "FALSE"
+

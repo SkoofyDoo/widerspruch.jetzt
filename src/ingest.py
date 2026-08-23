@@ -2,7 +2,6 @@ import os
 
 import chromadb 
 import re
-from pathlib import Path
 from dotenv import load_dotenv
 
 
@@ -12,10 +11,26 @@ from langchain_core.documents import Document
 from chromadb.utils.embedding_functions import create_langchain_embedding
 from chromadb.config import Settings
 
+from ingest_config import  (
+    ChunkMeta,
+    CLEANED_DIR,
+    CHROMA_DIR,
+
+    EMBEDDING_MODEL,
+    EMBEDDINGS_BASE_URL,
+
+    MAX_CHARS_ONE_CHUNK,
+    ABSATZ_SPLIT,
+    CLEANED_GLOB,
+
+
+    COLLECTION_NAME,
+    COLLECTION_METADATA,
+    REBUILD,
+    EMBED_BATCH_SIZE)
+
+
 load_dotenv()
-
-REBUILD = False
-
 
 print("=" * 70)
 print("RAG WITH LANGCHAIN")
@@ -26,23 +41,20 @@ print("=" * 70)
 # Embeddings 
 #========================================
 embeddings = OllamaEmbeddings(
-    model = os.environ["EMBEDDING_MODEL"],
-    base_url = os.environ["EMBEDDINGS_BASE_URL"]
+    model = EMBEDDING_MODEL,
+    base_url = EMBEDDINGS_BASE_URL,
 )
-
 
 # ========================================
 # TEXT LOADER
 # ========================================
 #TODO: Search for new approaches
 loader = DirectoryLoader(
-    path = "../data/cleaned/", 
-    glob = "sgb*.txt",
+    path = str(CLEANED_DIR), 
+    glob = str(CLEANED_GLOB),
     loader_cls = TextLoader,
     loader_kwargs = {"encoding": "utf-8"}
     )
-
-# test_loader = TextLoader(file_path = "../data/cleaned/sgb2__7_SGB_2_-_Einzelnorm.txt", encoding = "utf8")
 
 documents = loader.load()
 
@@ -50,67 +62,59 @@ print(f"[TEXT LOADER]: Anzahl der Dokumente: {len(documents)}")
 
 
 # ================================================
-# METADATA AUS DEM TEXT NAME, GESETZT, PARAGRAPH
+# METADATA AUS DEM TEXT NAME, GESETZT, PARAGRAPH, ABSATZ
 # ================================================
-def meta_from_source(doc: Document) -> dict:
-    source = doc.metadata["source"]
-    source_file = Path(source).name
-    name = source_file.lower()
+# def meta_from_source(doc: Document) -> dict:
+#     text = doc.page_content.strip()
+#     meta = ChunkMeta.from_document(doc.metadata["source"], text)
+#     md = meta.as_dict()
+    
+#     return md
 
-    if name.startswith("sgb2__"):
-        law = "SGB II"
-        m = re.search(r"^sgb2__(\d+[a-z]?)_", source_file, re.I)
-    elif name.startswith("sgbx__"):
-        law = "SGB X"
-        m = re.search(r"__SGBX_(\d+[a-z]?)_", source_file, re.I)
-    else:
-        law = "UNKNOWN"
-        m = None
-
-    paragraph = f"§ {m.group(1)}" if m else ""
-    if not paragraph and doc.page_content:
-        m2 = re.search(r"§\s*(\d+[a-z]?)", doc.page_content, re.I)
-        if m2:
-            paragraph = f"§ {m2.group(1)}"
-
-    return {
-        "source": source,
-        "source_file": source_file,
-        "law": law,
-        "paragraph": paragraph,
-    }
 
 
 # ================================================
 # CHUNKING (EIN PARAGRAPH - EIN CHUNK)
 # ================================================
 
+def extract_absatz(chunk_text: str) -> str:
+    m = re.search(r"\((\d+[a-z]?)\)", chunk_text)
+    return f"({m.group(1)})" if m else ""
+
+
 def chunking(documents: list[Document])-> list[Document]:
     chunks = []
     for doc in documents:
         
         text = doc.page_content.strip()
-        meta = meta_from_source(doc)
+        base = ChunkMeta.from_document(doc.metadata["source"], text)
         # TODO: Anzahl chars anpassen
-        if len(text) <= 2000:
-            chunks.append(Document(page_content = text, metadata = meta))
+        if len(text) <= MAX_CHARS_ONE_CHUNK:
+            md = base.as_dict()
+            md["absatz"] = ""
+            chunks.append(Document(page_content = text, metadata = md))
             continue
 
-        parts = re.split(r"\n(?=\(\d+[a-z]?\))", text)
+        parts = ABSATZ_SPLIT.split(text)
         header = parts[0].strip()
         body = [p.strip() for p in parts[1:] if p.strip()]
 
         if not body:
-            chunks.append(Document(page_content = text, metadata = meta))
+            md = base.as_dict()
+            chunks.append(Document(page_content = text, metadata = md))
             continue
 
         for p in body:
             content = f"{header}\n{p}" if header else p
-            chunks.append(Document(page_content = content, metadata = meta))
+            md = base.as_dict()
+            md["absatz"] = extract_absatz(p)
+            chunks.append(Document(page_content = content, metadata = md))
     
     print(f"[CHUNKING]: Länge der Chunks {len(chunks)}")
+    print(chunks[0].metadata)
     return chunks
 
+    
 # TEST
 # chunks = chunks[:10]
 
@@ -120,11 +124,11 @@ def chunking(documents: list[Document])-> list[Document]:
 
 def get_client():
     """ChromaDB Client"""
-    os.makedirs("../data/chroma/", exist_ok=True)
+    os.makedirs(str(CHROMA_DIR), exist_ok=True)
     print("[CHROMA]: Connection..")
     client = chromadb.PersistentClient(
-        path="../data/chroma",
-        settings=Settings(anonymized_telemetry=False)
+        path = str(CHROMA_DIR),
+        settings = Settings(anonymized_telemetry=False)
     )
     print(f"[CHROMA]: Connected {client}")
     return client
@@ -139,9 +143,9 @@ def open_collection(client):
             pass
         
     collection = client.get_or_create_collection (
-        name = "wdjetzt",
+        name = COLLECTION_NAME,
         embedding_function = chroma_ef,
-        metadata = {"hnsw:space": "cosine"}      
+        metadata = COLLECTION_METADATA,      
     )
     print(f"[CHROMA]: {collection}, Länge: {collection.count()}")
     return collection
@@ -149,20 +153,28 @@ def open_collection(client):
 def add_chunks(collection, chunks):
     """Chunks und Metadata zur Collection hinzufügen"""
     ids = [f"{c.metadata['source_file']}::{i}" for i, c in enumerate(chunks)]
+    print(f"[CHROMA]: indexing {len(ids)} chunks, batch={EMBED_BATCH_SIZE}", flush=True)
     texts = [c.page_content for c in chunks]
     metas = [{
         "source_file": c.metadata["source_file"],
         "law": c.metadata["law"],
         "paragraph": c.metadata["paragraph"],
+        "absatz": c.metadata["absatz"],
         }
         for c in chunks
     ]
-    collection.add(ids = ids, documents = texts, metadatas = metas)
-    print(f"[CHROMA]: Anzahl: {collection.count()} items wurden hinzugefügt")
+    for start in range(0, len(ids), EMBED_BATCH_SIZE):
+        
+        end = start + EMBED_BATCH_SIZE
+        collection.add(
+            ids = ids[start:end], 
+            documents = texts[start:end], 
+            metadatas = metas[start:end]
+            )
+        print(f"[CHROMA]: Embedded: {end}/{len(ids)}")
+    
     print(collection.count() == len(chunks))
     return 
-
-
 
 
 def main():
