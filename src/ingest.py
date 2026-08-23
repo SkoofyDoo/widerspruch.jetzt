@@ -14,6 +14,7 @@ from chromadb.config import Settings
 
 load_dotenv()
 
+REBUILD = False
 
 
 print("=" * 70)
@@ -67,7 +68,7 @@ def meta_from_source(doc: Document) -> dict:
         m = None
 
     paragraph = f"§ {m.group(1)}" if m else ""
-    if not paragraph and text:
+    if not paragraph and doc.page_content:
         m2 = re.search(r"§\s*(\d+[a-z]?)", doc.page_content, re.I)
         if m2:
             paragraph = f"§ {m2.group(1)}"
@@ -83,117 +84,113 @@ def meta_from_source(doc: Document) -> dict:
 # ================================================
 # CHUNKING (EIN PARAGRAPH - EIN CHUNK)
 # ================================================
-chunks = []
-for doc in documents:
+
+def chunking(documents: list[Document])-> list[Document]:
+    chunks = []
+    for doc in documents:
+        
+        text = doc.page_content.strip()
+        meta = meta_from_source(doc)
+        # TODO: Anzahl chars anpassen
+        if len(text) <= 2000:
+            chunks.append(Document(page_content = text, metadata = meta))
+            continue
+
+        parts = re.split(r"\n(?=\(\d+[a-z]?\))", text)
+        header = parts[0].strip()
+        body = [p.strip() for p in parts[1:] if p.strip()]
+
+        if not body:
+            chunks.append(Document(page_content = text, metadata = meta))
+            continue
+
+        for p in body:
+            content = f"{header}\n{p}" if header else p
+            chunks.append(Document(page_content = content, metadata = meta))
     
-    text = doc.page_content.strip()
-    meta = meta_from_source(doc)
-    # TODO: Anzahl chars anpassen
-    if len(text) <= 2000:
-        chunks.append(Document(page_content = text, metadata = meta))
-        continue
-
-    parts = re.split(r"\n(?=\(\d+[a-z]?\))", text)
-    header = parts[0].strip()
-    body = [p.strip() for p in parts[1:] if p.strip()]
-
-    if not body:
-        chunks.append(Document(page_content = text, metadata = meta))
-        continue
-
-    for p in body:
-        content = f"{header}\n{p}" if header else p
-        chunks.append(Document(page_content = content, metadata = meta))
-
-print(f"[CHUNKING]: Länge der Chunks {len(chunks)}")
-# print(chunks[0].page_content)
-# print(chunks[0].metadata)
-# print("-------")
-# print(chunks[1].page_content)
-# print(chunks[1].metadata)
+    print(f"[CHUNKING]: Länge der Chunks {len(chunks)}")
+    return chunks
 
 # TEST
 # chunks = chunks[:10]
 
-# ================================================
-# METADATA AUS FÜR CHROMA
-# ================================================
-
-ids = [f"{c.metadata['source_file']}::{i}" for i, c in enumerate(chunks)]
-texts = [c.page_content for c in chunks]
-metas = [{
-    "source_file": c.metadata["source_file"],
-    "law": c.metadata["law"],
-    "paragraph": c.metadata["paragraph"],
-    }
-    for c in chunks
-]
-
-
 # ========================================
 # CHROMA
 # ========================================
-os.makedirs("../data/chroma/", exist_ok=True)
-print("[CHROMA]: Connection..")
 
-
-
-client = chromadb.PersistentClient(
-    path="../data/chroma",
-    settings=Settings(anonymized_telemetry=False)
+def get_client():
+    """ChromaDB Client"""
+    os.makedirs("../data/chroma/", exist_ok=True)
+    print("[CHROMA]: Connection..")
+    client = chromadb.PersistentClient(
+        path="../data/chroma",
+        settings=Settings(anonymized_telemetry=False)
     )
+    print(f"[CHROMA]: Connected {client}")
+    return client
 
-print(f"[CHROMA]: Connected {client}")
-
-chroma_ef = create_langchain_embedding(embeddings)
-
-
-try:
-    client.delete_collection("wdjetzt")
-except Exception:
-    pass
-
-print("[CHROMA]: Collection gelöscht")
-
-try:
+def open_collection(client):
+    """Get or Create Collection"""
+    chroma_ef = create_langchain_embedding(embeddings)
+    if REBUILD:
+        try:
+            client.delete_collection("wdjetzt")
+        except Exception:
+            pass
+        
     collection = client.get_or_create_collection (
         name = "wdjetzt",
         embedding_function = chroma_ef,
         metadata = {"hnsw:space": "cosine"}      
     )
-except Exception as e:
-    print("[CHROMA]: Collection konnte nicht generiert werden" + e)
-    raise  
+    print(f"[CHROMA]: {collection}, Länge: {collection.count()}")
+    return collection
 
-print(f"[CHROMA]: {collection}, Länge: {collection.count()}")
+def add_chunks(collection, chunks):
+    """Chunks und Metadata zur Collection hinzufügen"""
+    ids = [f"{c.metadata['source_file']}::{i}" for i, c in enumerate(chunks)]
+    texts = [c.page_content for c in chunks]
+    metas = [{
+        "source_file": c.metadata["source_file"],
+        "law": c.metadata["law"],
+        "paragraph": c.metadata["paragraph"],
+        }
+        for c in chunks
+    ]
+    collection.add(ids = ids, documents = texts, metadatas = metas)
+    print(f"[CHROMA]: Anzahl: {collection.count()} items wurden hinzugefügt")
+    print(collection.count() == len(chunks))
+    return 
 
-collection.add(ids = ids, documents = texts, metadatas = metas)
-
-print(f"[CHROMA]: Anzahl: {collection.count()} items wurden hinzugefügt")
-
-print(collection.count() == len(chunks))
 
 
-query =  (
-    "Instruct: Given a question about German social law (SGB II / SGB X), "
-    "retrieve the most relevant legal paragraph.\n"
-    "Query: Wann ist eine Arbeit unzumutbar?"
-)
 
-result = collection.query(
-    query_texts = [query], 
-    n_results = 3
-)
+def main():
+    chunks = chunking(documents)
+    client = get_client()
+    collection = open_collection(client)
+    if REBUILD or collection.count() == 0:
+        add_chunks(collection, chunks)
 
-for doc, meta, dist in zip(
-    result["documents"][0],
-    result["metadatas"][0],
-    result["distances"][0],
-):
-    print(dist, meta)
-    print(doc[:400])
-    print("---")
-                 
+    query =  (
+        "Instruct: Given a question about German social law (SGB II / SGB X), "
+        "retrieve the most relevant legal paragraph.\n"
+        "Query: Wann ist eine Arbeit unzumutbar?"
+    )
+
+    result = collection.query(
+        query_texts = [query], 
+        n_results = 3
+    )
+
+    for doc, meta, dist in zip(
+        result["documents"][0],
+        result["metadatas"][0],
+        result["distances"][0],
+    ):
+        print(dist, meta)
+        print(doc[:400])
+        print("---")
 
 if __name__ == "__main__":
-    print("Well Done")
+    main()
