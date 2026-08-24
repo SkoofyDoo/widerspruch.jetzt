@@ -1,19 +1,13 @@
 import re
 from dotenv import load_dotenv
 
-
-from langchain_ollama import OllamaEmbeddings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_core.documents import Document
-
-
-from chroma_store import get_client, open_collection
+from chroma_store import open_collection
 
 from ingest_config import  (
     ChunkMeta,
     CLEANED_DIR,
-    EMBEDDING_MODEL,
-    EMBEDDINGS_BASE_URL,
     MAX_CHARS_ONE_CHUNK,
     ABSATZ_SPLIT,
     CLEANED_GLOB,
@@ -26,15 +20,6 @@ load_dotenv()
 print("=" * 70)
 print("RAG WITH LANGCHAIN")
 print("=" * 70)
-
-
-#========================================
-# Embeddings 
-#========================================
-# embeddings = OllamaEmbeddings(
-#     model = EMBEDDING_MODEL,
-#     base_url = EMBEDDINGS_BASE_URL,
-# )
 
 # ========================================
 # TEXT LOADER
@@ -55,7 +40,6 @@ print(f"[TEXT LOADER]: Anzahl der Dokumente: {len(documents)}")
 # ================================================
 # CHUNKING (EIN PARAGRAPH - EIN CHUNK)
 # ================================================
-
 def extract_absatz(chunk_text: str) -> str:
     m = re.search(r"\((\d+[a-z]?)\)", chunk_text)
     return f"({m.group(1)})" if m else ""
@@ -94,15 +78,9 @@ def chunking(documents: list[Document])-> list[Document]:
     return chunks
 
     
-# TEST
-# chunks = chunks[:10]
-
-# ========================================
-# CHROMA
-# ========================================
-
-
-
+# ================================================
+# ADD CHUNKS TO COLLECTION
+# ================================================
 def add_chunks(collection, chunks):
     """Chunks und Metadata zur Collection hinzufügen"""
     ids = [f"{c.metadata['source_file']}::{i}" for i, c in enumerate(chunks)]
@@ -116,6 +94,7 @@ def add_chunks(collection, chunks):
         }
         for c in chunks
     ]
+    
     for start in range(0, len(ids), EMBED_BATCH_SIZE):
         
         end = start + EMBED_BATCH_SIZE
@@ -132,6 +111,7 @@ def add_chunks(collection, chunks):
 
 def main():
     chunks = chunking(documents)
+    
     collection = open_collection(rebuild=REBUILD)
     if REBUILD or collection.count() == 0:
         add_chunks(collection, chunks)

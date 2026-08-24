@@ -21,7 +21,7 @@ CLEANED_GLOB = "sgb*.txt"
 
 
 
-REBUILD = True
+REBUILD = False
 EMBED_BATCH_SIZE = 32
 
 @dataclass
