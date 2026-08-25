@@ -71,6 +71,27 @@ def sparse_search(bm25, ids, docs, metas, question: str, n: int) -> list[dict]:
         })
     return items
 
+def rrf_fuse(dense_items: list[dict], sparce_items: list[dict], rrf_k: int = 60) -> list[dict]:
+    scores = {}
+    payload = {}
+    
+    for rank, it in enumerate(dense_items, start = 1):
+        i = it["id"]
+        scores[i] = scores.get(i, 0.0) + 1.0 / (rrf_k + rank)
+        payload[i] = it
+        
+    for rank, it in enumerate(sparce_items, start = 1):
+        i = it["id"]
+        scores[i] = scores.get(i, 0.0) + 1.0 / (rrf_k + rank)
+        payload[i] = it
+        
+    ordered = sorted(scores.keys(), key = lambda i: scores[i], reverse = True)
+    out = []
+    for i in ordered:
+        row = dict(payload[i])
+        row["rrf_score"] = scores[i]
+        out.append(row)
+    return out
 
 if __name__ == "__main__":
     print("=" * 70)
@@ -100,3 +121,11 @@ if __name__ == "__main__":
             print(s["score"], s["law"], s["paragraph"], s["absatz"])
             print(s["text"][:300])
             print("---")
+            
+    rrf_scores = rrf_fuse(dense_items, sparce_items, rrf_k = 60)
+    
+    for r in rrf_scores:
+        print("=======RRF======")
+        print(r["rrf_score"],r["law"], r["paragraph"], r["absatz"])
+        print(r["text"][:300])
+        print("---")
