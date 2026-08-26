@@ -14,8 +14,8 @@ This guide is for recruiters, reviewers, and you recording a short Loom/video.
 4. Run unit tests:
 
 ```bash
-pip install -r requirements-dev.txt
-pytest -q
+uv sync --group dev
+uv run pytest -q
 ```
 
 ## Option B — Full local demo (recommended)
@@ -29,20 +29,15 @@ pytest -q
 ### Steps
 
 ```bash
-# 1) install
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-# source .venv/bin/activate
-pip install -r requirements.txt
+# 1) install (uv creates .venv; Python 3.11)
+uv sync --group dev
 
 # 2) env
 copy .env.example .env   # Windows
 # cp .env.example .env   # Unix
 
 # 3) run API
-uvicorn app.main:app --host 127.0.0.1 --port 8008
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8008
 ```
 
 Then:

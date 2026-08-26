@@ -94,15 +94,14 @@ flowchart LR
 ## Quickstart (local)
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-pip install -r requirements-local.txt   # includes embeddings for indexing
+# Python 3.11 (see .python-version). uv creates .venv.
+uv sync --group local --group dev       # includes embeddings for indexing
 copy .env.example .env                  # set HF_TOKEN or use Ollama
 
 # If you need to rebuild the index (prebuilt data/chroma ships for demo):
-# python src/fetch_sgb2.py && python src/fetch_sgbx.py && python src/clean.py && python src/chunk.py && python src/index.py
+# uv run python src/fetch_sgb2.py && uv run python src/fetch_sgbx.py && uv run python src/clean.py && uv run python src/chunk.py && uv run python src/index.py
 
-uvicorn app.main:app --host 127.0.0.1 --port 8008
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8008
 ```
 
 - UI: http://127.0.0.1:8008/ui/  
@@ -128,8 +127,8 @@ docker compose --profile demo up --build
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
-pytest -q
+uv sync --group dev
+uv run pytest -q
 ```
 
 ---
