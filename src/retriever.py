@@ -103,21 +103,21 @@ if __name__ == "__main__":
     
     dense_items = dense_search(
         collection, 
-        question = "Wann ist eine arbeit unzumutbar?", 
-        n = 5)
+        question = "Wie lange dauert die widerspruchsfrist?", 
+        n = 3)
     
     for d in dense_items:
-        print("---")
+        print("=======DENSE======")
         print(d["distance"], d["law"], d["paragraph"], d["absatz"])
         print(d["text"][:300])
         print("---")
     
     
     bm25, ids, docs, metas = build_bm25(collection)
-    sparce_items = sparse_search(bm25, ids, docs, metas, question = "Wann ist eine arbeit unzumutbar?", n = 5)
+    sparce_items = sparse_search(bm25, ids, docs, metas, question = "Wie lange dauert die Widerspruchsfrist?", n = 3)
     
     for s in sparce_items:
-            print("---")
+            print("=======SPARCE======")
             print(s["score"], s["law"], s["paragraph"], s["absatz"])
             print(s["text"][:300])
             print("---")

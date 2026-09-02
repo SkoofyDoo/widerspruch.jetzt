@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"
 CLEANED_DIR = DATA_DIR / "cleaned"
 CHROMA_DIR = DATA_DIR / "chroma"
@@ -17,7 +17,7 @@ EMBEDDINGS_BASE_URL = os.getenv("EMBEDDINGS_BASE_URL", "http://127.0.0.1:11434")
 
 MAX_CHARS_ONE_CHUNK = 2000
 ABSATZ_SPLIT = re.compile(r"\n(?=\(\d+[a-z]?\))")
-CLEANED_GLOB = "sgb*.txt"
+CLEANED_GLOB = "sg*.txt"
 
 
 
@@ -41,7 +41,9 @@ class ChunkMeta:
             law = "SGB II"
         elif name.startswith("sgbx__"):
             law = "SGB X"
-        else: 
+        elif name.startswith("sgg__"):
+            law = "SGG"
+        else:
             law = "UNKNOWN"
         
         paragraph = ""

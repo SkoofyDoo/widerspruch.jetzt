@@ -49,7 +49,7 @@ def main():
                 html_files.append(os.path.join(root, fn))
 
     if not html_files:
-        raise RuntimeError("Нет raw html. Сначала запусти fetch_sgb2.py / fetch_sgbx.py")
+        raise RuntimeError("Keine raw html vorhanden. Starte fetch_law.py")
 
     for path in html_files:
         with open(path, "r", encoding="utf-8") as f:
@@ -57,7 +57,7 @@ def main():
 
         cleaned = extract_main_text(html)
 
-        rel = os.path.relpath(path, RAW_ROOT)  # sgb2/xxx.html или sgbx/xxx.html
+        rel = os.path.relpath(path, RAW_ROOT)  
         out_fn = rel.replace(os.sep, "__").replace(".html", ".txt")
 
         with open(os.path.join(OUT_DIR, out_fn), "w", encoding="utf-8") as f:

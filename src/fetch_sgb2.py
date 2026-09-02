@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 from tqdm import tqdm
 
 BASE = "https://www.gesetze-im-internet.de/sgb_2/"
-INDEX = urljoin(BASE, "inhalts_bersicht.html")
+INDEX = urljoin(BASE, "inhalts_übersicht.html")
 FALLBACK = BASE
 
 OUT_DIR = os.path.join("data", "raw", "sgb2")
@@ -29,11 +29,6 @@ def normalize_href(href: str) -> str:
 
 
 def is_einzelnorm_href(href: str) -> bool:
-    """
-    На gesetze-im-internet.de параграфы обычно как:
-      __1.html
-      __2.html
-    """
     href = normalize_href(href)
     if not href or not href.endswith(".html"):
         return False
@@ -70,7 +65,7 @@ def main():
 
     print(f"Found SGB II pages: {len(links)}")
     if len(links) < 20:
-        raise RuntimeError("Ссылок слишком мало — структура изменилась.")
+        raise RuntimeError("Zu wenig links.")
 
     for url in tqdm(links):
         page = requests.get(url, headers=HEADERS, timeout=30)

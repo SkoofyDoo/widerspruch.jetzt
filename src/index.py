@@ -12,7 +12,6 @@ CHROMA_DIR = os.path.join("data", "chroma")
 COLLECTION = "laws_de"
 
 def fp(rec):
-    # fingerprint по смыслу: law+paragraph+text
     law = rec.get("law","")
     par = rec.get("paragraph","")
     text = rec.get("text","")
@@ -21,7 +20,7 @@ def fp(rec):
 
 def main():
     if not os.path.exists(CHUNKS):
-        raise RuntimeError("Нет chunks.jsonl. Сначала запусти chunk.py")
+        raise RuntimeError("Kein chunks.jsonl - starte chunk.py")
 
     os.makedirs(CHROMA_DIR, exist_ok=True)
     client = chromadb.PersistentClient(path=CHROMA_DIR)
