@@ -15,6 +15,7 @@ Flow:
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict, Tuple
 
 from fastapi import HTTPException
@@ -22,6 +23,7 @@ from fastapi import HTTPException
 from app import config as app_config
 from app.config import (
     DEFAULT_K,
+    LLM_POLISH,
     MAX_K,
     MAX_REPAIR_ROUNDS_CIT,
     MAX_REPAIR_ROUNDS_STRONG,
@@ -49,12 +51,12 @@ from app.generation.prompts import (
     widerspruch_body_prompt,
 )
 from app.jobcenter import hydrate_jobcenter_from_db
-from app.rag.citations import (
+from app.rag.v1.citations import (
     allowed_citations_from_items,
     extract_citations,
     repair_remove_illegal_citations,
 )
-from app.rag.retrieve import build_context, retrieve
+from app.rag.v1.retrieve import build_context, retrieve
 from app.utils import safe_str
 
 
@@ -104,6 +106,7 @@ def generate_widerspruch_letter(
 ) -> Tuple[str, list, str | None]:
     """Generate a grounded formal letter. Returns (letter, rag_items, context)."""
     facts = hydrate_jobcenter_from_db(facts or {})
+    t0 = time.perf_counter()
 
     bescheid_datum = safe_str(facts.get("bescheid_datum"))
     query = (
@@ -113,10 +116,14 @@ def generate_widerspruch_letter(
     )
     items = retrieve(query, k=max(2, min(MAX_K, int(k or DEFAULT_K))), require_absatz=True)
     context = build_context(items)
+    t_retrieve = time.perf_counter()
+    print(f"[PIPE] retrieve {t_retrieve - t0:.1f}s items={len(items)}", flush=True)
 
     body = call_llm(widerspruch_body_prompt(context=context, facts=facts, req_text=req_text)).strip()
     if not body:
         raise RuntimeError("LLM returned empty body")
+    t_body = time.perf_counter()
+    print(f"[PIPE] body_llm {t_body - t_retrieve:.1f}s chars={len(body)}", flush=True)
 
     body = sanitize_widerspruch_text(body)
     body = enforce_official_no_lists(body)
@@ -156,7 +163,13 @@ def generate_widerspruch_letter(
             if flags:
                 letter = hard_soften_strong_claims(letter)
 
-    letter = polish_with_ollama(letter, style=style)
+    if LLM_POLISH:
+        t_before_polish = time.perf_counter()
+        letter = polish_with_ollama(letter, style=style)
+        print(
+            f"[PIPE] polish_llm {time.perf_counter() - t_before_polish:.1f}s",
+            flush=True,
+        )
     letter = sanitize_widerspruch_text(letter)
     letter = remove_klaeger_terms(letter)
 
@@ -189,4 +202,5 @@ def generate_widerspruch_letter(
     letter = sanitize_widerspruch_text(letter)
     letter = remove_klaeger_terms(letter)
 
+    print(f"[PIPE] total {time.perf_counter() - t0:.1f}s polish={LLM_POLISH}", flush=True)
     return letter, items, (context if context else None)

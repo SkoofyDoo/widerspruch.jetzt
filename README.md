@@ -53,7 +53,7 @@ End-to-end product that:
 3. **Retrieves** grounded paragraphs for a user case
 4. **Generates** a formal letter via LLM (Ollama locally / HuggingFace in the cloud demo)
 5. **Hardens** output with citation allowlists, claim softening, and domain guards
-6. **Ships** a UI + preview/paywall (Stripe) + beta magic links + TXT/PDF export
+6. **Ships** a UI + preview/paywall (Stripe, optional) + TXT/PDF export
 
 ### What it does **not** do
 
@@ -74,7 +74,7 @@ End-to-end product that:
 | Multi-stage generation safety pipeline | `app/generation/pipeline.py` |
 | Strong-claim softeners & topic guards | `app/generation/guards.py` |
 | Stripe checkout + webhook credits | `app/billing/access.py` |
-| HMAC beta tester tokens | `app/testers/tokens.py` |
+
 | Offline statute pipeline | `src/` |
 | Unit tests (no GPU/LLM required) | `tests/` |
 | Dockerized API + Railway deploy | `Dockerfile`, `railway.toml` |
@@ -144,7 +144,7 @@ uv run pytest -q
 | POST | `/widerspruch/workflow?preview=1` | Free preview |
 | POST | `/widerspruch/workflow?download=1` | Download (credits / demo policy) |
 | POST | `/billing/*` | Stripe (optional) |
-| POST | `/t/{token}/widerspruch/workflow` | Beta tester path |
+
 
 Example body: [`samples/api_request_example.json`](samples/api_request_example.json)
 

@@ -85,22 +85,37 @@ def _active_model(provider: str) -> str:
     return config.OLLAMA_MODEL
 
 
+def _ollama_chat_url(configured: str) -> str:
+    """Prefer /api/chat — think:false is reliable there for Qwen3 (generate often ignores it)."""
+    root = configured.split("/api/")[0].rstrip("/") if "/api/" in configured else configured.rstrip("/")
+    return f"{root}/api/chat"
+
+
 def _call_ollama(prompt: str) -> str:
+    # Qwen3 defaults to thinking mode: without think:false the model burns the
+    # token budget on `thinking` and leaves `response`/`content` empty → UI timeout.
+    url = _ollama_chat_url(config.OLLAMA_URL)
     payload = {
         "model": config.OLLAMA_MODEL,
-        "prompt": prompt,
+        "messages": [{"role": "user", "content": prompt}],
         "stream": False,
+        "think": False,
         "options": {"temperature": 0.1, "top_p": 0.9},
     }
     try:
-        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r = requests.post(url, json=payload, timeout=config.OLLAMA_TIMEOUT)
         r.raise_for_status()
     except requests.RequestException as e:
         raise LLMError(f"Ollama request failed: {e}") from e
     data = r.json()
-    text = (data.get("response") or "").strip()
+    text = ""
+    msg = data.get("message")
+    if isinstance(msg, dict):
+        text = (msg.get("content") or "").strip()
     if not text:
-        raise LLMError("Ollama returned empty response")
+        text = (data.get("response") or "").strip()
+    if not text:
+        raise LLMError("Ollama returned empty response (is think disabled?)")
     return text
 
 

@@ -1,4 +1,4 @@
-from app.rag.citations import (
+from app.rag.v1.citations import (
     allowed_citations_from_items,
     extract_citations,
     repair_remove_illegal_citations,

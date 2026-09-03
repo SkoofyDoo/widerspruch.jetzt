@@ -1,0 +1,15 @@
+{"id": "q01", "question": "Wann ist eine Arbeit unzumutbar?", "expect_law": "SGB II", "expect_paragraph": "§ 10", "expect_paragraphs": ["§ 10"], "notes": "Zumutbarkeit"}
+{"id": "q02", "question": "Wer gehört zur Bedarfsgemeinschaft?", "expect_law": "SGB II", "expect_paragraph": "§ 7", "expect_paragraphs": ["§ 7"], "notes": "Bedarfsgemeinschaft"}
+{"id": "q03", "question": "Was zählt zu den Kosten der Unterkunft und Heizung?", "expect_law": "SGB II", "expect_paragraph": "§ 22", "expect_paragraphs": ["§ 22"], "notes": "KdU"}
+{"id": "q04", "question": "Wann braucht man eine Zusicherung vor dem Umzug?", "expect_law": "SGB II", "expect_paragraph": "§ 22", "expect_paragraphs": ["§ 22"], "notes": "Zusicherung Umzug"}
+{"id": "q05", "question": "Welches Einkommen ist zu berücksichtigen?", "expect_law": "SGB II", "expect_paragraph": "§ 11", "expect_paragraphs": ["§ 11", "§ 11a", "§ 11b"], "notes": "hit if any of 11 / 11a / 11b"}
+{"id": "q06", "question": "Was ist nicht als Einkommen zu berücksichtigen?", "expect_law": "SGB II", "expect_paragraph": "§ 11a", "expect_paragraphs": ["§ 11a"], "notes": "Nicht zu berücksichtigendes Einkommen"}
+{"id": "q07", "question": "Welche Absetzbeträge gibt es beim Erwerbseinkommen?", "expect_law": "SGB II", "expect_paragraph": "§ 11b", "expect_paragraphs": ["§ 11b"], "notes": "Absetzbeträge"}
+{"id": "q08", "question": "Wann liegt eine Minderung oder Sanktion vor?", "expect_law": "SGB II", "expect_paragraph": "§ 31", "expect_paragraphs": ["§ 31", "§ 31a", "§ 31b"], "notes": "hit if any of 31 / 31a / 31b"}
+{"id": "q09", "question": "Was ist eine Bedarfsgemeinschaft mit Partner?", "expect_law": "SGB II", "expect_paragraph": "§ 7", "expect_paragraphs": ["§ 7"], "notes": "Partner / Abs. 3"}
+{"id": "q10", "question": "Wie lange ist die Frist für den Widerspruch?", "expect_law": "SGG", "expect_paragraph": "§ 84", "expect_paragraphs": ["§ 84"], "notes": "needs SGG in index; law=SGG after rebuild"}
+{"id": "q11", "question": "Was gilt für die aufschiebende Wirkung beim Widerspruch?", "expect_law": "SGG", "expect_paragraph": "§ 86a", "expect_paragraphs": ["§ 86a", "§ 86b"], "notes": "aufschiebende Wirkung"}
+{"id": "q12", "question": "Wann ist Akteneinsicht möglich?", "expect_law": "SGB X", "expect_paragraph": "§ 25", "expect_paragraphs": ["§ 25"], "notes": "Akteneinsicht"}
+{"id": "q13", "question": "Was ist die Definition eines Verwaltungsaktes?", "expect_law": "SGB X", "expect_paragraph": "§ 31", "expect_paragraphs": ["§ 31"], "notes": "Legaldefinition; engere Formulierung als „Was ist ein Verwaltungsakt?“"}
+{"id": "q14", "question": "Wann muss eine Anhörung vor dem Verwaltungsakt erfolgen?", "expect_law": "SGB X", "expect_paragraph": "§ 24", "expect_paragraphs": ["§ 24"], "notes": "Anhörung"}
+{"id": "q15", "question": "Revision zum Bundessozialgericht – was ist zu beachten?", "expect_law": "SGG", "expect_paragraph": "§ 160a", "expect_paragraphs": ["§ 160", "§ 160a"], "notes": "Revision / Nichtzulassungsbeschwerde"}
