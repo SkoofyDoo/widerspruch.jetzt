@@ -59,7 +59,7 @@ Or open the UI: http://127.0.0.1:8008/ui/
 1. Fill name, BG number (10 digits), Jobcenter, dates.
 2. Paste a short case description (illness + missed appointment + reduction).
 3. Click **preview** → show truncated draft + disclaimer.
-4. Explain paywall: preview free, download consumes credit / tester token.
+4. Explain open demo: full preview + download (or paywall if re-enabled).
 5. Show `/docs` OpenAPI briefly.
 6. Show `GET /health` → `chroma_ok`, `chunks`, `ollama_ok`.
 

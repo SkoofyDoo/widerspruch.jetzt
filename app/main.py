@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import UI_DIR
-from app.routes import billing, feedback, health, pages, search, tester, widerspruch
+from app.routes import billing, feedback, health, pages, search, widerspruch
 
 app = FastAPI(
     title="WIDERSPRUCH.JETZT API",
@@ -32,7 +32,6 @@ app.include_router(pages.router)
 app.include_router(health.router)
 app.include_router(search.router)
 app.include_router(widerspruch.router)
-app.include_router(tester.router)
 app.include_router(billing.router)
 app.include_router(feedback.router)
 

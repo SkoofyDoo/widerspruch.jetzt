@@ -1,11 +1,11 @@
-"""Lazy infrastructure dependencies (Chroma collection, optional Stripe)."""
+"""Lazy infrastructure dependencies (Chroma collection for legacy, optional Stripe)."""
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
 from app.config import CHROMA_DIR, COLLECTION
-from app.rag.embeddings import get_embedding_function
+from app.rag.v1.embeddings import get_embedding_function
 
 try:
     import stripe as stripe_mod
@@ -24,7 +24,7 @@ def get_embed_fn():
 
 
 def get_collection():
-    """Return the Chroma collection, loading it on first use."""
+    """Return the legacy Chroma collection, loading it on first use."""
     global _client, _col, _init_error
     if _col is not None:
         return _col
@@ -40,7 +40,7 @@ def get_collection():
         _init_error = (
             f"Chroma collection '{COLLECTION}' not found or failed to load. "
             f"CHROMA_DIR='{CHROMA_DIR}'. "
-            f"Ensure data/chroma is in the image/volume and EMBEDDING_PROVIDER matches index. "
+            f"Ensure data/chroma is present and EMBEDDING_PROVIDER matches index. "
             f"Original error: {e}"
         )
         raise RuntimeError(_init_error) from e

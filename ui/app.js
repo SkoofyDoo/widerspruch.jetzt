@@ -1,5 +1,5 @@
 // ui/app.js
-// WIDERSPRUCH.JETZT — UI logic (HTML-compatible ids + validation + preview/download + beta token + feedback gating)
+// WIDERSPRUCH.JETZT — UI logic (validation + preview/download + feedback gating)
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -341,14 +341,7 @@
     });
   }
 
-  // ---------------------------
-  // Beta token / endpoints
-  // ---------------------------
-  const betaToken = getParam("token");
-  const BETA = !!betaToken;
-
   function workflowUrl() {
-    if (BETA) return `/t/${encodeURIComponent(betaToken)}/widerspruch/workflow`;
     return `/widerspruch/workflow`;
   }
 
@@ -485,16 +478,15 @@
     setDisabled(el.btnPreview, !st.allOk);
     setDisabled(el.ctaMobile, !st.allOk);
 
-    // download: open access (no paywall) OR beta token
+    // download: open access (portfolio / demo) or unlocked session
     setDisabled(el.btnDownload, !(st.allOk && canDownload()));
   }
 
   function canDownload() {
-    // Open portfolio: payments off / demo allows download
     if (APP_CFG && (APP_CFG.payments_enabled === false || APP_CFG.demo_allow_download === true || APP_CFG.paywall_enabled === false)) {
       return true;
     }
-    return !!BETA;
+    return false;
   }
 
   function buildPayload(extra = {}) {
@@ -611,7 +603,8 @@
     setStatus("info", "Erzeuge Vorschau…");
     if (el.preview) el.preview.textContent = "⏳ Generiere Vorschau…";
 
-    const timeout = withTimeout(90000);
+    // Local Ollama (qwen3:8b) + hybrid retrieve can exceed 90s on cold start
+    const timeout = withTimeout(240000);
     let tickT = null;
 
     try {
@@ -658,7 +651,7 @@
       if (el.btnCopy) setDisabled(el.btnCopy, false);
       // Never show paywall CTA when open access
       if (el.paywallCta && canDownload()) el.paywallCta.style.display = "none";
-      else if (!BETA && el.paywallCta && APP_CFG.payments_enabled) el.paywallCta.style.display = "block";
+      else if (el.paywallCta && APP_CFG.payments_enabled) el.paywallCta.style.display = "block";
     } catch (e) {
       const msg =
         (e?.message === "timeout" || String(e).includes("timeout") || String(e).includes("AbortError"))
@@ -797,51 +790,11 @@
     }
   }
 
-  // ---------------------------
-  // Whoami (beta) + ✅ sync local uses with server uses
-  // ---------------------------
   async function loadWhoami() {
     if (!el.pillAccess || !el.pillUser) return;
-
     const b = el.pillUser.querySelector("b");
-    if (b) b.textContent = "-";
-    el.pillAccess.innerHTML = `<span class="dot"></span> Prüfe Zugang…`;
-
-    if (!BETA) {
-      el.pillAccess.innerHTML = `<span class="dot"></span> Kein Zugang`;
-      return;
-    }
-
-    try {
-      const res = await fetch(`/tester/whoami?token=${encodeURIComponent(betaToken)}`);
-      if (!res.ok) {
-        el.pillAccess.innerHTML = `<span class="dot"></span> Link ungültig`;
-        return;
-      }
-      WHOAMI = await res.json();
-      if (b) b.textContent = WHOAMI.email || "-";
-      const uses = Number.isFinite(+WHOAMI.uses) ? WHOAMI.uses : "?";
-      const max = Number.isFinite(+WHOAMI.max_uses) ? WHOAMI.max_uses : "?";
-      el.pillAccess.innerHTML = `<span class="dot"></span> Beta aktiv (${uses}/${max})`;
-      if (el.paywallCta) el.paywallCta.style.display = "none";
-
-      // ✅ sync local feedback counter up to server counter
-      try {
-        const st = getFeedbackState();
-        const serverUses = Number(WHOAMI?.uses) || 0;
-        const localUses = Number(st.uses) || 0;
-
-        if (serverUses > localUses) {
-          st.uses = serverUses;
-          if (serverUses > 0) st.has_downloaded_once = true;
-          setFeedbackState(st);
-        }
-      } catch {
-        // ignore
-      }
-    } catch {
-      el.pillAccess.innerHTML = `<span class="dot"></span> Zugang unbekannt`;
-    }
+    if (b) b.textContent = "Demo";
+    el.pillAccess.innerHTML = `<span class="dot"></span> Open Demo`;
   }
 
   // ---------------------------
@@ -890,7 +843,7 @@
       const pricing = $("linkPricing");
       if (pricing) pricing.style.display = "none";
       if (el.paywallCta) el.paywallCta.style.display = "none";
-      if (el.pillAccess && !BETA) {
+      if (el.pillAccess) {
         el.pillAccess.innerHTML = `<span class="dot"></span> Open Demo (Volltext + Download)`;
       }
     }

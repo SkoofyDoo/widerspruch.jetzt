@@ -38,15 +38,15 @@ def stripe_price_id() -> str:
 
 def require_stripe_config() -> None:
     if stripe is None:
-        raise HTTPException(500, "Stripe not installed. pip install stripe")
+        raise HTTPException(500,"[STRIPE]: Stripe-bibliothek nicht installiert. Bitte 'uv add stipe' in der console ausführen")
     sk = stripe_secret_key()
     if not sk:
-        raise HTTPException(500, "Missing Stripe secret key for current mode")
+        raise HTTPException(500, "[STRIPE]: Stripe Secret fehlt!")
     stripe.api_key = sk
     if not stripe_webhook_secret():
-        raise HTTPException(500, "Missing Stripe webhook secret for current mode")
+        raise HTTPException(500, "[STRIPE]: Stripe WebHook Secret fehlt!")
     if not stripe_price_id():
-        raise HTTPException(500, "Missing STRIPE_PRICE_ID for current mode")
+        raise HTTPException(500, "[STRIPE]: STRIPE_PRICE_ID fehlt!")
 
 
 def load_subs() -> dict:
@@ -160,18 +160,18 @@ def dedup_event(event_id: str) -> bool:
 
 
 def consume_use_or_402(user_id: str):
-    """Consume one download credit or raise 402/429."""
+    """Nutze ein Download Credit"""
     if not user_id:
-        raise HTTPException(401, "Missing user_id")
+        raise HTTPException(401, f"[DB]: Kein User mit dieser {user_id} in der Datenbank")
     db = load_subs()
     rec = db.get(user_id) or {}
     until = rec.get("access_until")
     dt = parse_dt(until) if until else None
     if (not dt) or (dt <= now_utc()):
-        raise HTTPException(402, "Payment required")
+        raise HTTPException(402, "[DB]: Payment required")
     uses_left = int(rec.get("uses_left") or 0)
     if uses_left <= 0:
-        raise HTTPException(429, "No credits left. Please purchase again.")
+        raise HTTPException(429, "[DB]: Keine Kredite mehr vefügbar! Bitte fühlen Sie die Kredite nach.")
     rec["uses_left"] = uses_left - 1
     db[user_id] = rec
     save_subs(db)
@@ -179,6 +179,7 @@ def consume_use_or_402(user_id: str):
 
 
 def create_checkout_session(user_id: str, days: int):
+    """Stripe Checkout Session"""
     require_stripe_config()
     price_id = stripe_price_id()
     success_url = f"{APP_URL}/ui/?paid=1&user_id={user_id}"

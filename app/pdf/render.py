@@ -7,11 +7,9 @@ from io import BytesIO
 
 
 _FONT_CANDIDATES = [
-    # Windows
     r"C:\Windows\Fonts\arial.ttf",
     r"C:\Windows\Fonts\calibri.ttf",
     r"C:\Windows\Fonts\segoeui.ttf",
-    # Linux (common in containers/desktop)
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSans.ttf",

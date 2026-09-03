@@ -23,6 +23,7 @@ dependencies = [
     "langchain-text-splitters>=1.1.2",
     "langchain-unstructured>=1.0.1",
     "posthog>=2.4.0,<6.0.0",
+    "rank-bm25>=0.2.2",
 ]
 
 [dependency-groups]

@@ -1,8 +1,0 @@
-§ 50b
-Zentral verwaltete Verfahren der Informationstechnik
-1.
-nutzerinnen- und nutzerzentrierte Entwicklung und Ausgestaltung von elektronischen Verwaltungsleistungen und -abläufen;
-2.
-Ende-zu-Ende Digitalisierung und Automatisierung von Verwaltungsverfahren;
-3.
-Entwicklung und Betrieb informationstechnischer Infrastrukturen, die eine zügige Anpassung zentral verwalteter Verfahren der Informationstechnik an gesetzliche Vorgaben sicherstellen.

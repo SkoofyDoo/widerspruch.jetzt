@@ -27,7 +27,6 @@ def main():
 
     embed_fn = SentenceTransformerEmbeddingFunction(model_name="intfloat/multilingual-e5-base")
 
-    # ЖЁСТКО пересоздаём коллекцию
     try:
         client.delete_collection(COLLECTION)
     except Exception:

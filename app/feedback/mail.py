@@ -1,4 +1,4 @@
-"""Send product feedback via SMTP."""
+"""Produkt-feedback senden via SMTP."""
 
 from __future__ import annotations
 
@@ -7,18 +7,13 @@ import smtplib
 from email.message import EmailMessage
 
 from app.config import FEEDBACK_TO, SMTP_FROM, SMTP_HOST, SMTP_KEY, SMTP_PORT, SMTP_USER
-from app.testers.tokens import derive_email_from_token
 
 
 def send_feedback_email(data: dict) -> None:
     if not SMTP_HOST or not SMTP_USER or not SMTP_KEY:
-        raise RuntimeError("SMTP env not configured")
+        raise RuntimeError("[SMTP]: SMTP .env nicht konfiguriert")
 
-    token = (data.get("token") or "").strip()
-    derived = derive_email_from_token(token)
-    user_email = derived or ((data.get("email") or "").strip().lower())
-    if not user_email:
-        user_email = "unknown"
+    user_email = ((data.get("email") or "").strip().lower()) or "unknown"
 
     rating = data.get("rating")
     quality = data.get("quality")

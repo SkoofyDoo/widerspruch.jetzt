@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List
 
 from app.generation.llm import call_llm
-from app.rag.citations import allowed_citations_from_items
+from app.rag.v1.citations import allowed_citations_from_items
 from app.utils import safe_str
 
 

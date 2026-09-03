@@ -1,5 +1,6 @@
 """Deterministic letter header / Anlagen composition (not LLM-generated)."""
 
+# TODO: Formattierung der Ausgabe mit der LLM 
 from __future__ import annotations
 
 import re

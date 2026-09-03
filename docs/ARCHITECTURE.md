@@ -14,7 +14,7 @@ Browser UI (vanilla JS)
         ├─ generation/      prompts + guards + pipeline
         ├─ rag/             retrieve + citation allowlist
         ├─ billing/         Stripe + credit store
-        ├─ testers/         HMAC magic links
+
         ├─ pdf/             A4 export
         └─ feedback/        SMTP
         │
@@ -67,7 +67,7 @@ User facts + free text
    │  • topic guards (Krank/Attest/Arbeit)
    │  • enforced “Ich bitte um …” paragraph
    ▼
-6. Preview (free)  OR  Download (consumes 1 credit / tester use)
+6. Preview + download (open portfolio) OR paywall when enabled
 ```
 
 ## Why these choices
@@ -101,6 +101,6 @@ charge.refunded
 | `app/rag/` | Retrieval + citations |
 | `app/generation/` | Prompts, guards, pipeline |
 | `app/billing/` | Credits + Stripe |
-| `app/testers/` | Beta HMAC tokens |
+
 | `app/routes/` | HTTP surface (workflow, search, billing, pages) |
 | `src/` | Offline corpus pipeline only (fetch → index) |

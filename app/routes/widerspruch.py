@@ -17,7 +17,7 @@ from app.generation.pipeline import extract_user_text, generate_widerspruch_lett
 from app.jobcenter import hydrate_jobcenter_from_db
 from app.models import WiderspruchWorkflowRequest
 from app.pdf.render import text_to_pdf_bytes
-from app.rag.retrieve import build_quellen_unique
+from app.rag.v1.retrieve import build_quellen_unique
 
 router = APIRouter(tags=["widerspruch"])
 
