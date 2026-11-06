@@ -62,7 +62,7 @@ Docker alone is not public. Pick one host:
 | Host | Notes |
 |------|--------|
 | Railway / Render / Fly.io | Deploy Dockerfile, set env vars, attach volume or bake index |
-| Hetzner VPS | Most stable for DE portfolio (~€4/mo) |
+| Hetzner VPS | Most stable for DE / production (~€4–10/mo) |
 | HF Spaces (Docker) | Possible but heavy (torch + chroma) |
 
 Minimum env on host:
@@ -76,6 +76,18 @@ APP_URL=https://your-demo-host
 ```
 
 Ship `data/chroma` via volume or image layer.
+
+## VPS: weekly statute refresh
+
+On a VPS with Docker Compose, enable the `cron` profile so SGB II / X / SGG XML is re-fetched every Monday 03:00 (`Europe/Berlin`) into `./data` (norms + cleaned). Chroma rebuild stays manual.
+
+```bash
+docker compose --profile cron up --build -d
+# optional: refresh once on start
+CORPUS_CRON_RUN_ON_START=true docker compose --profile cron up -d
+```
+
+Details: [`app/parser/README.md`](../app/parser/README.md).
 
 Then put in README:
 

@@ -25,20 +25,21 @@ Browser UI (vanilla JS)
 ## Offline index pipeline
 
 ```text
-gesetze-im-internet.de
-   │  src/fetch_sgb2.py, fetch_sgbx.py
+gesetze-im-internet.de  (official XML ZIPs)
+   │  app/parser/fetch_xml.py
    ▼
-data/raw/*.html
-   │  src/clean.py
+data/raw_xml/{sgb2,sgbx,sgg}/*.xml
+   │  app/parser/parse_xml.py
    ▼
-data/cleaned/*.txt
-   │  src/chunk.py
+data/norms.jsonl  (+ data/cleaned/sg*.txt for legacy)
+   │  app/rag/v2/ingest.py
    ▼
-data/chunks.jsonl
-   │  src/index.py  (multilingual-e5-base, passage: prefix)
-   ▼
-data/chroma  collection laws_de
+data/chroma  collection wdjetzt
 ```
+
+Legacy HTML path (`fetch_law.py` / `clean.py`) remains available but is not preferred.
+
+On VPS, compose profile `cron` runs `corpus-cron` (supercronic) weekly: `scripts/update_corpus.py` → refresh `norms.jsonl` / `cleaned/` without rebuilding Chroma.
 
 ## Online letter pipeline (safety-first)
 

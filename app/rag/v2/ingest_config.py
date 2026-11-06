@@ -11,6 +11,7 @@ load_dotenv()
 ROOT_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = ROOT_DIR / "data"
 CLEANED_DIR = DATA_DIR / "cleaned"
+NORMS_JSONL = DATA_DIR / "norms.jsonl"
 # Prefer explicit env, else project-root data/chroma (single source of truth)
 _chroma_env = (os.getenv("CHROMA_DIR") or "").strip().strip('"').strip("'")
 CHROMA_DIR = Path(_chroma_env or (DATA_DIR / "chroma")).expanduser().resolve()
