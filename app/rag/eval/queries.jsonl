@@ -12,4 +12,4 @@
 {"id": "q12", "question": "Wann ist Akteneinsicht möglich?", "expect_law": "SGB X", "expect_paragraph": "§ 25", "expect_paragraphs": ["§ 25"], "notes": "Akteneinsicht"}
 {"id": "q13", "question": "Was ist die Definition eines Verwaltungsaktes?", "expect_law": "SGB X", "expect_paragraph": "§ 31", "expect_paragraphs": ["§ 31"], "notes": "Legaldefinition; engere Formulierung als „Was ist ein Verwaltungsakt?“"}
 {"id": "q14", "question": "Wann muss eine Anhörung vor dem Verwaltungsakt erfolgen?", "expect_law": "SGB X", "expect_paragraph": "§ 24", "expect_paragraphs": ["§ 24"], "notes": "Anhörung"}
-{"id": "q15", "question": "Revision zum Bundessozialgericht – was ist zu beachten?", "expect_law": "SGG", "expect_paragraph": "§ 160a", "expect_paragraphs": ["§ 160", "§ 160a"], "notes": "Revision / Nichtzulassungsbeschwerde"}
+{"id": "q15", "question": "Wann ist die Revision zum Bundessozialgericht zuzulassen?", "expect_law": "SGG", "expect_paragraph": "§ 160", "expect_paragraphs": ["§ 160", "§ 160a"], "notes": "Zulassung der Revision; engere Formulierung als „Revision – was ist zu beachten?“"}
