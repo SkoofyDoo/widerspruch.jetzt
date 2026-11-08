@@ -16,7 +16,7 @@ Flow:
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from fastapi import HTTPException
 
@@ -43,6 +43,9 @@ from app.generation.guards import (
     remove_klaeger_terms,
     sanitize_widerspruch_text,
 )
+from app.generation.domains import detect_domain
+from app.generation.domains.domain_router import build_domain_query
+
 from app.generation.llm import call_llm
 from app.generation.prompts import (
     polish_with_ollama,
@@ -97,29 +100,135 @@ def make_preview(text: str) -> str:
     return cut.rstrip() + "\n\n🔒 Vollständiger Text nach Freischaltung (Download)."
 
 
+
+def build_quellen_for_trust(items: list, max_cites: int = 8) -> List[Dict[str, Any]]:
+    """Quellen panel payload: unique law+§ with excerpt and optional URL."""
+    best: Dict[tuple, dict] = {}
+    for it in items or []:
+        law = (it.get("law") or "").strip()
+        par = (it.get("paragraph") or "").strip()
+        if not law and not par:
+            continue
+        key = (law, par)
+        dist = float(it.get("distance", 999) or 999)
+        prev = best.get(key)
+        if prev is None or dist < float(prev.get("distance", 999) or 999):
+            text_body = (it.get("text") or "").strip()
+            best[key] = {
+                "law": law,
+                "paragraph": par,
+                "absatz": (it.get("absatz") or "").strip(),
+                "excerpt": text_body[:280],
+                "source_file": it.get("source_file") or "",
+                "source_url": it.get("source_url") or "",
+                "distance": it.get("distance"),
+                "rrf_score": it.get("rrf_score"),
+            }
+    ranked = sorted(best.values(), key=lambda x: float(x.get("distance", 999) or 999))
+    return ranked[:max_cites]
+
+
+def build_trust_meta(decision, items: list, letter: str) -> Dict[str, Any]:
+    """Domain + quellen + simple confidence for Trust UI (no LLM)."""
+    allowed = allowed_citations_from_items(items)
+    used = extract_citations(letter)
+    illegal = sorted(used - allowed)
+    reasons: List[str] = []
+    score = 0
+
+    if float(getattr(decision, "confidence", 0) or 0) >= 0.7:
+        score += 1
+        reasons.append(
+            f"Domain: {decision.pack.label} ({decision.confidence:.0%})"
+        )
+    else:
+        reasons.append(
+            f"Domain unsicher: {getattr(decision.pack, 'label', decision.domain_id)}"
+        )
+
+    if len(allowed) >= 2:
+        score += 1
+        reasons.append(f"{len(allowed)} Normen im Kontext")
+    elif allowed:
+        reasons.append("Nur 1 Norm im Kontext")
+    else:
+        reasons.append("Keine Normen retrieved")
+
+    if not illegal:
+        score += 1
+        reasons.append("Keine unerlaubten §-Zitate")
+    else:
+        reasons.append(f"{len(illegal)} unerlaubte § (gefiltert)")
+
+    level = "hoch" if score >= 3 else "mittel" if score == 2 else "niedrig"
+    return {
+        "domain": {
+            "id": decision.domain_id,
+            "label": decision.pack.label,
+            "confidence": round(float(decision.confidence), 3),
+            "reason": decision.reason,
+            "addressee": getattr(decision.pack, "adresse", None)
+            or getattr(decision.pack, "addressee", ""),
+        },
+        "quellen": build_quellen_for_trust(items),
+        "confidence": {
+            "level": level,
+            "score": score,
+            "max_score": 3,
+            "reasons": reasons,
+            "allowed_citations": sorted(allowed),
+            "used_citations": sorted(used),
+            "illegal_citations": illegal,
+        },
+    }
+
+
 def generate_widerspruch_letter(
     facts: Dict[str, Any],
     req_text: str,
     k: int,
     style: str,
     include_anlagen: bool,
-) -> Tuple[str, list, str | None]:
-    """Generate a grounded formal letter. Returns (letter, rag_items, context)."""
+) -> Tuple[str, list, str | None, Dict[str, Any]]:
+    """Generate a grounded formal letter.
+
+    Returns (letter, rag_items, context, trust_meta).
+    """
     facts = hydrate_jobcenter_from_db(facts or {})
     t0 = time.perf_counter()
 
     bescheid_datum = safe_str(facts.get("bescheid_datum"))
-    query = (
-        f"Widerspruch Jobcenter Bescheid {bescheid_datum}. "
-        f"Akteneinsicht Zustellung Verwaltungsakt Begründung Minderung Terminversäumnis. "
-        f"{req_text[:600]}"
-    )
-    items = retrieve(query, k=max(2, min(MAX_K, int(k or DEFAULT_K))), require_absatz=True)
+    decision = detect_domain(req_text, facts)
+    pack = decision.pack
+
+    query = build_domain_query(req_text, bescheid_datum, pack)
+
+    items = retrieve(
+        query,
+        k=max(2, min(MAX_K, int(k or DEFAULT_K))),
+        require_absatz=True,
+    )[:5]
+
     context = build_context(items)
     t_retrieve = time.perf_counter()
+    print(
+        f"[PIPE] domain={decision.domain_id} conf={decision.confidence:.2f} "
+        f"reason={decision.reason}",
+        flush=True,
+    )
+    print(f"[PIPE] query={query!r}", flush=True)
+    print(f"[PIPE] allowlist={sorted(allowed_citations_from_items(items))}", flush=True)
     print(f"[PIPE] retrieve {t_retrieve - t0:.1f}s items={len(items)}", flush=True)
 
-    body = call_llm(widerspruch_body_prompt(context=context, facts=facts, req_text=req_text)).strip()
+    body = call_llm(
+        widerspruch_body_prompt(
+            context=context,
+            facts=facts,
+            req_text=req_text,
+            items=items,
+            pack=pack,
+        )
+    ).strip()
     if not body:
         raise RuntimeError("LLM returned empty body")
     t_body = time.perf_counter()
@@ -170,6 +279,11 @@ def generate_widerspruch_letter(
             f"[PIPE] polish_llm {time.perf_counter() - t_before_polish:.1f}s",
             flush=True,
         )
+        
+    allowed = allowed_citations_from_items(items)
+    illegal = sorted(extract_citations(letter) - allowed)
+    if illegal:
+        letter = repair_remove_illegal_citations(letter, illegal)
     letter = sanitize_widerspruch_text(letter)
     letter = remove_klaeger_terms(letter)
 
@@ -202,5 +316,11 @@ def generate_widerspruch_letter(
     letter = sanitize_widerspruch_text(letter)
     letter = remove_klaeger_terms(letter)
 
+    trust_meta = build_trust_meta(decision, items, letter)
     print(f"[PIPE] total {time.perf_counter() - t0:.1f}s polish={LLM_POLISH}", flush=True)
-    return letter, items, (context if context else None)
+    print(
+        f"[PIPE] confidence={trust_meta['confidence']['level']} "
+        f"domain={trust_meta['domain']['id']}",
+        flush=True,
+    )
+    return letter, items, (context if context else None), trust_meta

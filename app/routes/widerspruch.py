@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from app import config
 from app.billing.access import consume_use_or_402
@@ -13,13 +13,24 @@ from app.config import DEFAULT_K, MAX_K
 from app.demo import check_preview_rate_limit, enforce_demo_download_policy, paywall_enabled
 from app.generation.guards import validate_text
 from app.generation.llm import LLMError
-from app.generation.pipeline import extract_user_text, generate_widerspruch_letter, make_preview
+from app.generation.pipeline import (
+    build_quellen_for_trust,
+    extract_user_text,
+    generate_widerspruch_letter,
+    make_preview,
+)
 from app.jobcenter import hydrate_jobcenter_from_db
 from app.models import WiderspruchWorkflowRequest
 from app.pdf.render import text_to_pdf_bytes
 from app.rag.v1.retrieve import build_quellen_unique
 
 router = APIRouter(tags=["widerspruch"])
+
+_EMPTY_TRUST: Dict[str, Any] = {
+    "domain": None,
+    "quellen": [],
+    "confidence": None,
+}
 
 
 def resolve_preview_download(preview, download, body_preview: bool):
@@ -107,6 +118,8 @@ def widerspruch_workflow(
         if paywall_enabled() and not (config.DEMO_MODE and config.DEMO_ALLOW_DOWNLOAD):
             consume_use_or_402(uid)
 
+    trust_meta: Dict[str, Any] = dict(_EMPTY_TRUST)
+
     if use_cache:
         letter = cached
         items, context = [], None
@@ -117,7 +130,7 @@ def widerspruch_workflow(
         req_text = extract_user_text(req)
 
         try:
-            letter, items, context = generate_widerspruch_letter(
+            letter, items, context, trust_meta = generate_widerspruch_letter(
                 facts=facts, req_text=req_text, k=k, style=style, include_anlagen=True
             )
         except LLMError as e:
@@ -125,16 +138,37 @@ def widerspruch_workflow(
         except RuntimeError as e:
             raise HTTPException(503, str(e)) from e
 
+    preview_headers = {
+        "X-Preview": "1",
+        "X-Full-Letter": "1" if config.FULL_LETTER_PREVIEW or not paywall_enabled() else "0",
+        "X-Demo-Mode": "1" if config.DEMO_MODE or not paywall_enabled() else "0",
+    }
+
     if is_preview:
         preview_text = make_preview(letter)
+        fmt = (req.format or "txt").lower().strip()
+        # Trust UI: JSON preview with domain / quellen / confidence.
+        # Plain text kept for older clients that do not send format=json.
+        if fmt == "json":
+            validation = validate_text(letter)
+            quellen = trust_meta.get("quellen") or build_quellen_for_trust(items)
+            return JSONResponse(
+                content={
+                    "ok": bool(validation.get("ok")),
+                    "text": preview_text,
+                    "letter": preview_text,
+                    "validation": validation,
+                    "domain": trust_meta.get("domain"),
+                    "quellen": quellen,
+                    "confidence": trust_meta.get("confidence"),
+                    "context": context if (req.include_context and not use_cache) else None,
+                },
+                headers=preview_headers,
+            )
         return Response(
             content=preview_text.encode("utf-8"),
             media_type="text/plain; charset=utf-8",
-            headers={
-                "X-Preview": "1",
-                "X-Full-Letter": "1" if config.FULL_LETTER_PREVIEW or not paywall_enabled() else "0",
-                "X-Demo-Mode": "1" if config.DEMO_MODE or not paywall_enabled() else "0",
-            },
+            headers=preview_headers,
         )
 
     fmt = (req.format or "json").lower().strip()
@@ -142,17 +176,19 @@ def widerspruch_workflow(
         return _export_letter(letter, fmt, req.filename)
 
     validation = validate_text(letter)
-    quellen = _build_quellen_safe(items, req) if not use_cache else []
+    if use_cache:
+        quellen = []
+    elif req.include_quellen:
+        quellen = trust_meta.get("quellen") or build_quellen_unique(items, max_cites=8)
+    else:
+        quellen = trust_meta.get("quellen") or []
     return {
         "ok": bool(validation.get("ok")),
         "text": letter,
+        "letter": letter,
         "validation": validation,
+        "domain": trust_meta.get("domain"),
         "quellen": quellen,
+        "confidence": trust_meta.get("confidence"),
         "context": context if (req.include_context and not use_cache) else None,
     }
-
-
-def _build_quellen_safe(items, req):
-    if not req.include_quellen:
-        return []
-    return build_quellen_unique(items, max_cites=8)

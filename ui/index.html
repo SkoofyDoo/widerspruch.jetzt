@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/ui/app.css">
+  <link rel="stylesheet" href="/ui/app.css?v=trust2">
   <title>WIDERSPRUCH.JETZT</title>
 </head>
 
 <body>
-  <script src="/ui/app.js" defer></script>
+  <script src="/ui/app.js?v=trust2" defer></script>
 
   <div class="topbar">
     <div class="topbar-inner">
@@ -181,14 +181,35 @@
         </div>
       </div>
 
-      <!-- PREVIEW -->
+      <!-- PREVIEW / TRUST UI -->
       <div class="card">
         <div class="card-head">
           <h2>Vorschau</h2>
-          <small>Volltext · Download gratis (Demo)</small>
+          <small>Editierbar · Quellen · Download</small>
         </div>
         <div class="card-body">
-          <pre id="preview" class="preview-open">Klicke auf „Vorschau anzeigen“ — voller Text, oder lade TXT/PDF herunter.</pre>
+          <div id="trustBar" class="trust-bar">
+            <div class="trust-row">
+              <span id="confidenceBadge" class="conf-badge conf-mittel">Confidence: —</span>
+              <span id="domainLabel" class="domain-label">Domain: — (nach Vorschau)</span>
+            </div>
+            <ul id="confidenceReasons" class="conf-reasons">
+              <li>Nach „Vorschau anzeigen“ erscheinen Domain, Confidence und Quellen.</li>
+            </ul>
+          </div>
+
+          <div class="trust-grid">
+            <div class="trust-draft">
+              <label class="trust-label" for="preview">Entwurf (editierbar)</label>
+              <textarea id="preview" class="preview-open preview-edit" rows="18" spellcheck="true" placeholder="Klicke auf „Vorschau anzeigen“ — danach kannst du den Text hier bearbeiten."></textarea>
+            </div>
+            <aside class="trust-quellen" aria-label="Quellen">
+              <div class="trust-label">Quellen (§) — Trust-Panel</div>
+              <div id="quellenList" class="quellen-list">
+                <div class="quellen-empty">Rechts neben dem Entwurf: nach der Vorschau die genutzten Normen.</div>
+              </div>
+            </aside>
+          </div>
 
           <button id="paywallCta" class="paywall-cta" type="button" style="display:none;" aria-hidden="true">
             <div class="left">
@@ -214,7 +235,7 @@
           </div>
 
           <div class="help" style="margin-top:10px;">
-            Portfolio-Demo: voller Text und Download ohne Zahlung. Keine Rechtsberatung.
+            Du kannst den Entwurf vor dem Download anpassen. Quellen und Confidence helfen bei der Prüfung. Keine Rechtsberatung.
           </div>
         </div>
       </div>
