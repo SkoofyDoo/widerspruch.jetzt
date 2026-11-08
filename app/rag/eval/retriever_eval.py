@@ -2,7 +2,8 @@
 Offline hit@3 eval: legacy (e5 / laws_de) vs hybrid v2 (Qwen / wdjetzt + BM25 + RRF).
 
 Run from repo root:
-  uv run python evals/retrieval/retriever_eval.py
+  uv run python -m app.rag.eval.retriever_eval
+  uv run python app/rag/eval/retriever_eval.py
 """
 
 from __future__ import annotations
@@ -14,14 +15,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-sys.path.insert(0, str(ROOT))
+# app/rag/eval/this_file.py → parents[3] = repo root
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 load_dotenv(ROOT / ".env")
 
-# New stack reads Qwen settings from env / chroma_store defaults
 from app.rag.v2.chroma_store import open_collection  # noqa: E402
 from app.rag.v2.retriever import build_bm25, dense_search, rrf_fuse, sparse_search  # noqa: E402
 
@@ -84,6 +84,8 @@ def load_legacy_retrieve():
     os.environ["EMBEDDING_PROVIDER"] = "local"
     os.environ["EMBEDDING_MODEL"] = LEGACY_EMBEDDING_MODEL
     os.environ["CHROMA_COLLECTION"] = "laws_de"
+    # Force dense legacy path even if .env has RETRIEVER_BACKEND=hybrid
+    os.environ["RETRIEVER_BACKEND"] = "legacy"
 
     import app.config as config
     import app.deps as deps
@@ -91,6 +93,7 @@ def load_legacy_retrieve():
     config.EMBEDDING_PROVIDER = "local"
     config.EMBEDDING_MODEL = LEGACY_EMBEDDING_MODEL
     config.COLLECTION = "laws_de"
+    config.RETRIEVER_BACKEND = "legacy"
     deps._client = None
     deps._col = None
     deps._init_error = None

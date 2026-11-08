@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 
 import chromadb
+import numpy as np
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 from chromadb.config import Settings
-from chromadb.utils.embedding_functions import create_langchain_embedding
 from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
 
@@ -23,6 +25,30 @@ load_dotenv()
 _ef = None
 
 
+class OllamaChromaEmbeddingFunction(EmbeddingFunction[Documents]):
+    """LangChain Ollama embeddings with Chroma 1.x ``embed_query(input=...)`` API."""
+
+    def __init__(self, model: str, base_url: str) -> None:
+        self._lc = OllamaEmbeddings(model=model, base_url=base_url)
+
+    def __call__(self, input: Documents) -> Embeddings:
+        vectors = self._lc.embed_documents(list(input))
+        return cast(
+            Embeddings,
+            [np.asarray(v, dtype=np.float32) for v in vectors],
+        )
+
+    def embed_query(self, input: Documents) -> Embeddings:
+        # Chroma 1.x calls embed_query(input=<list of query texts>)
+        return cast(
+            Embeddings,
+            [
+                np.asarray(self._lc.embed_query(text), dtype=np.float32)
+                for text in input
+            ],
+        )
+
+
 def get_client():
     """Persistent Chroma client under repo data/chroma."""
     os.makedirs(str(CHROMA_DIR), exist_ok=True)
@@ -36,11 +62,12 @@ def get_client():
 
 
 def get_embedding():
-    """Cached LangChain↔Chroma embedding function (Qwen via Ollama)."""
+    """Cached Ollama embedding function compatible with Chroma 1.x."""
     global _ef
     if _ef is None:
-        _ef = create_langchain_embedding(
-            OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=EMBEDDINGS_BASE_URL)
+        _ef = OllamaChromaEmbeddingFunction(
+            model=EMBEDDING_MODEL,
+            base_url=EMBEDDINGS_BASE_URL,
         )
     return _ef
 

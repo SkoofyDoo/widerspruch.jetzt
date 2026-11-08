@@ -31,6 +31,7 @@ def search(q: str = Query(..., min_length=2), k: int = Query(DEFAULT_K, ge=1, le
                 score=float(res["distances"][0][i]),
                 text=text,
                 source_file=md.get("source_file", ""),
+                source_url=md.get("source_url", ""),
                 law=md.get("law", ""),
                 paragraph=md.get("paragraph", ""),
             )

@@ -4,6 +4,11 @@
 # Portfolio demo (HuggingFace remote LLM, no payments):
 #   set HF_TOKEN in .env
 #   docker compose --profile demo up --build
+#
+# VPS with weekly GII corpus refresh (fetch XML + parse, no Chroma rebuild):
+#   docker compose --profile cron up --build -d
+#   # optional first run now:
+#   CORPUS_CRON_RUN_ON_START=true docker compose --profile cron up -d
 
 services:
   api:
@@ -31,6 +36,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+
+  # Weekly XML corpus refresh → data/norms.jsonl + data/cleaned/
+  # Schedule: Monday 03:00 (see scripts/corpus.crontab). Does not rebuild Chroma.
+  corpus-cron:
+    profiles: ["cron"]
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      TZ: ${TZ:-Europe/Berlin}
+      CORPUS_CRON_RUN_ON_START: ${CORPUS_CRON_RUN_ON_START:-false}
+    volumes:
+      - ./data:/app/data
+    entrypoint: ["/app/scripts/corpus_cron_entrypoint.sh"]
 
   # Explicit demo profile: same image, demo-friendly defaults
   api-demo:

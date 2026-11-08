@@ -179,6 +179,11 @@
     status: $("status"),
     statusText: $("statusText"),
     preview: $("preview"),
+    trustBar: $("trustBar"),
+    confidenceBadge: $("confidenceBadge"),
+    domainLabel: $("domainLabel"),
+    confidenceReasons: $("confidenceReasons"),
+    quellenList: $("quellenList"),
 
     paywallCta: $("paywallCta"),
 
@@ -557,22 +562,38 @@
     if (el.format) el.format.value = "txt";
     if (el.include_quellen) el.include_quellen.value = "false";
 
-    if (el.preview) el.preview.textContent = "(noch nichts)";
+    setPreviewValue("");
+    if (el.preview) {
+      el.preview.placeholder =
+        "Klicke auf „Vorschau anzeigen“ — danach kannst du den Text hier bearbeiten.";
+    }
     if (el.paywallCta) el.paywallCta.style.display = "none";
 
     lastGeneratedLetter = "";
+    clearTrustPanel();
     onInput();
     toast("Felder geleert.");
   }
 
-  // Last generated letter — reuse for TXT/PDF so download matches Vorschau
+  // Last generated / edited letter — reuse for TXT/PDF so download matches Vorschau
   let lastGeneratedLetter = "";
+  let lastTrustMeta = null;
+
+  function previewValue() {
+    if (!el.preview) return "";
+    // textarea (Trust UI) uses .value; legacy <pre> used textContent
+    if ("value" in el.preview) return (el.preview.value || "").trim();
+    return (el.preview.textContent || "").trim();
+  }
+
+  function setPreviewValue(text) {
+    if (!el.preview) return;
+    if ("value" in el.preview) el.preview.value = text || "";
+    else el.preview.textContent = text || "";
+  }
 
   function getExportableLetter() {
-    if (lastGeneratedLetter && lastGeneratedLetter.trim().length > 40) {
-      return lastGeneratedLetter.trim();
-    }
-    const fromUi = (el.preview?.textContent || "").trim();
+    const fromUi = previewValue();
     if (
       fromUi &&
       fromUi.length > 40 &&
@@ -581,9 +602,88 @@
       !fromUi.startsWith("Fehler") &&
       !fromUi.startsWith("Server ")
     ) {
+      lastGeneratedLetter = fromUi;
       return fromUi;
     }
+    if (lastGeneratedLetter && lastGeneratedLetter.trim().length > 40) {
+      return lastGeneratedLetter.trim();
+    }
     return "";
+  }
+
+  function clearTrustPanel() {
+    lastTrustMeta = null;
+    if (el.trustBar) el.trustBar.hidden = false;
+    if (el.confidenceBadge) {
+      el.confidenceBadge.textContent = "Confidence: —";
+      el.confidenceBadge.className = "conf-badge conf-mittel";
+    }
+    if (el.domainLabel) el.domainLabel.textContent = "Domain: — (nach Vorschau)";
+    if (el.confidenceReasons) {
+      el.confidenceReasons.innerHTML =
+        "<li>Nach „Vorschau anzeigen“ erscheinen Domain, Confidence und Quellen.</li>";
+    }
+    if (el.quellenList) {
+      el.quellenList.innerHTML =
+        '<div class="quellen-empty">Rechts neben dem Entwurf: nach der Vorschau die genutzten Normen.</div>';
+    }
+  }
+
+  function renderTrustPanel(data) {
+    const domain = data?.domain || null;
+    const confidence = data?.confidence || null;
+    const quellen = Array.isArray(data?.quellen) ? data.quellen : [];
+    lastTrustMeta = { domain, confidence, quellen };
+
+    if (el.trustBar) el.trustBar.hidden = false;
+
+    const level = (confidence?.level || "mittel").toLowerCase();
+    if (el.confidenceBadge) {
+      el.confidenceBadge.className = `conf-badge conf-${level}`;
+      el.confidenceBadge.textContent = `Confidence: ${level}`;
+    }
+    if (el.domainLabel) {
+      const label = domain?.label || domain?.id || "—";
+      const conf =
+        typeof domain?.confidence === "number"
+          ? ` (${Math.round(domain.confidence * 100)}%)`
+          : "";
+      el.domainLabel.textContent = `Domain: ${label}${conf}`;
+    }
+    if (el.confidenceReasons) {
+      const reasons = confidence?.reasons || [];
+      el.confidenceReasons.innerHTML = reasons
+        .map((r) => `<li>${escapeHtml(String(r))}</li>`)
+        .join("");
+    }
+    if (el.quellenList) {
+      if (!quellen.length) {
+        el.quellenList.innerHTML =
+          '<div class="quellen-empty">Keine Quellen vom Server erhalten.</div>';
+      } else {
+        el.quellenList.innerHTML = quellen
+          .map((q) => {
+            const head = [q.law, q.paragraph, q.absatz].filter(Boolean).join(" ");
+            const excerpt = escapeHtml((q.excerpt || "").slice(0, 280));
+            const link = q.source_url
+              ? `<a class="quellen-link" href="${escapeAttr(q.source_url)}" target="_blank" rel="noopener">Quelle öffnen</a>`
+              : "";
+            return `<div class="quellen-item"><div class="quellen-head">${escapeHtml(head)}</div><div class="quellen-excerpt">${excerpt}</div>${link}</div>`;
+          })
+          .join("");
+      }
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/'/g, "&#39;");
   }
 
   // ---------------------------
@@ -601,7 +701,8 @@
 
     const startedAt = Date.now();
     setStatus("info", "Erzeuge Vorschau…");
-    if (el.preview) el.preview.textContent = "⏳ Generiere Vorschau…";
+    setPreviewValue("⏳ Generiere Vorschau…");
+    clearTrustPanel();
 
     // Local Ollama (qwen3:8b) + hybrid retrieve can exceed 90s on cold start
     const timeout = withTimeout(240000);
@@ -624,6 +725,7 @@
       const data = await readTextOrJson(res);
       if (!res.ok) {
         lastGeneratedLetter = "";
+        clearTrustPanel();
         let msg = "Fehler";
         if (typeof data === "string" && data.trim()) msg = data;
         else if (data?.detail) msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
@@ -634,20 +736,23 @@
         }
         setStatus("err", msg);
         toast(msg);
-        if (el.preview) el.preview.textContent = msg;
+        setPreviewValue(msg);
         return;
       }
 
-      const letterText = (typeof data === "string") ? data : (data?.text || JSON.stringify(data, null, 2));
+      const letterText = (typeof data === "string")
+        ? data
+        : (data?.letter || data?.text || JSON.stringify(data, null, 2));
       lastGeneratedLetter = letterText;
 
-      setStatus("ok", "Vorschau bereit.");
+      setStatus("ok", "Vorschau bereit — du kannst den Text noch anpassen.");
       toast("Vorschau bereit.");
+      setPreviewValue(letterText);
       if (el.preview) {
-        el.preview.textContent = letterText;
         el.preview.classList.remove("preview-locked");
         el.preview.classList.add("preview-open");
       }
+      if (typeof data === "object" && data) renderTrustPanel(data);
       if (el.btnCopy) setDisabled(el.btnCopy, false);
       // Never show paywall CTA when open access
       if (el.paywallCta && canDownload()) el.paywallCta.style.display = "none";
@@ -660,7 +765,8 @@
 
       setStatus("err", msg);
       toast(msg);
-      if (el.preview) el.preview.textContent = msg;
+      setPreviewValue(msg);
+      clearTrustPanel();
     } finally {
       clearInterval(tickT);
       timeout.done();
@@ -706,15 +812,18 @@
           const msg = (typeof genData === "string") ? genData : (genData?.detail || "Generierung fehlgeschlagen");
           throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
         }
-        letter = (typeof genData === "string") ? genData : (genData?.text || "");
+        letter = (typeof genData === "string")
+          ? genData
+          : (genData?.letter || genData?.text || "");
         letter = (letter || "").trim();
         if (letter.length < 40) throw new Error("Leerer Brieftext vom Server.");
         lastGeneratedLetter = letter;
+        setPreviewValue(letter);
         if (el.preview) {
-          el.preview.textContent = letter;
           el.preview.classList.remove("preview-locked");
           el.preview.classList.add("preview-open");
         }
+        if (typeof genData === "object" && genData) renderTrustPanel(genData);
         if (el.btnCopy) setDisabled(el.btnCopy, false);
       }
 
@@ -897,14 +1006,20 @@
 
     // enable copy when open access
     el.btnCopy?.addEventListener("click", async () => {
-      const t = el.preview?.textContent || "";
-      if (!t || t.startsWith("Klicke")) return;
+      const t = previewValue();
+      if (!t || t.startsWith("Klicke") || t.startsWith("⏳")) return;
       try {
         await navigator.clipboard.writeText(t);
         toast("Text kopiert.");
       } catch {
         toast("Kopieren fehlgeschlagen.");
       }
+    });
+
+    // Keep export buffer in sync with manual edits
+    el.preview?.addEventListener("input", () => {
+      const t = previewValue();
+      if (t.length > 40) lastGeneratedLetter = t;
     });
 
     setStatus(

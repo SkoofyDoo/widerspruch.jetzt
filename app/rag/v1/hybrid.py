@@ -34,7 +34,7 @@ def _state():
         if _collection.count() == 0:
             raise RuntimeError(
                 "Hybrid collection 'wdjetzt' is empty under data/chroma. "
-                "Run: uv run python -m app.rag.v2.ingest  (set INGEST_REBUILD=true if needed)."
+                "Run: uv run python -m app.rag.v2.ingest_v2  (after parse_xml sets chroma_rebuild.flag)."
             )
         _bm25_pack = build_bm25(_collection)
     return _collection, _bm25_pack
@@ -100,6 +100,7 @@ def retrieve_hybrid(q: str, k: int, require_absatz: bool = True) -> List[dict]:
         row = {
             "id": cid,
             "source_file": it.get("source_file", ""),
+            "source_url": it.get("source_url", ""),
             "law": it.get("law", ""),
             "paragraph": it.get("paragraph", ""),
             "absatz": it.get("absatz", ""),

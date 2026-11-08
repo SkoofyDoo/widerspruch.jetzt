@@ -75,6 +75,7 @@ def sanitize_widerspruch_text(t: str) -> str:
     """Normalize phrasing, citations, and whitespace in generated text."""
     if not t:
         return ""
+    t = strip_meta_labels_and_markdown(t)
     t = re.sub(r"^\s*#{1,6}\s*", "", t, flags=re.MULTILINE)
     t = re.sub(r"\bwiderruf\b", "Widerspruch", t, flags=re.IGNORECASE)
     t = re.sub(r"\bwiderrufen\b", "Widerspruch einlegen", t, flags=re.IGNORECASE)
@@ -101,8 +102,43 @@ def sanitize_widerspruch_text(t: str) -> str:
 def remove_klaeger_terms(text: str) -> str:
     t = text or ""
     t = re.sub(r"\bDer\s+Kläger\b", "Ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bDie\s+Klägerin\b", "Ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bKlägerin\b", "ich", t, flags=re.IGNORECASE)
     t = re.sub(r"\bKläger\b", "Widerspruchsführer", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bDie\s+Antragstellerin\b", "Ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bDer\s+Antragsteller\b", "Ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bAntragstellerin\b", "ich", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bAntragsteller(?:s|n)?\b", "ich", t, flags=re.IGNORECASE)
+    # third-person leftovers referring to the writer
+    t = re.sub(r"\bihre\s+Sichtweise\b", "meine Sichtweise", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bihre(?:n|m)?\s+Verhalten\b", "mein Verhalten", t, flags=re.IGNORECASE)
     return t
+
+
+_META_LABEL_RX = re.compile(
+    r"^\s*(?:\d+[\.\)]\s*)?\*{0,2}\s*"
+    r"(Sachverhalt|Rechtliche\s+Würdigung|Rechtliche\s+Punkte|Prüfbitte|Antrag|Begründung|Würdigung)"
+    r"\s*\*{0,2}\s*:?\s*",
+    re.IGNORECASE,
+)
+
+
+def strip_meta_labels_and_markdown(text: str) -> str:
+    """Remove outline labels / markdown the model sometimes emits instead of Amtsstil."""
+    t = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
+    t = re.sub(r"__([^_]+)__", r"\1", t)
+    t = re.sub(r"`+", "", t)
+    lines = []
+    for ln in t.split("\n"):
+        ln2 = _META_LABEL_RX.sub("", ln).rstrip()
+        # drop pure numbering leftovers like "1." on its own
+        if re.match(r"^\s*\d+[\.\)]\s*$", ln2):
+            continue
+        lines.append(ln2)
+    t = "\n".join(lines)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    return t.strip()
 
 
 def is_krank_attest_termin_case(req_text: str) -> bool:
@@ -195,12 +231,15 @@ def flatten_list_block(lines: List[str]) -> str:
 def enforce_official_no_lists(body: str) -> str:
     """Convert bullet/enum style into continuous official-letter paragraphs."""
     t = (body or "").replace("\r\n", "\n").replace("\r", "\n")
+    t = strip_meta_labels_and_markdown(t)
     t = remove_klaeger_terms(t)
 
     t = "\n".join([ln for ln in t.split("\n") if not _STYLE_FORBIDDEN_ANLAGEN_RX.match(ln)])
     t = "\n".join([ln for ln in t.split("\n") if not _STYLE_FORBIDDEN_ANLAGEN_ITEM_RX.match(ln)])
     t = _STYLE_FORBIDDEN_HEADINGS_RX.sub("", t)
     t = _STYLE_FORBIDDEN_ENUM_RX.sub("", t)
+    # numbered outline lines: "1. text" / "2) text"
+    t = re.sub(r"^\s*\d+[\.\)]\s+", "", t, flags=re.MULTILINE)
 
     out_lines = []
     buf_bullets = []

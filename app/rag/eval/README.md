@@ -26,9 +26,8 @@ Vergleich zur Legacy-Pipeline (`laws_de` + multilingual-e5, nur dense, fixed-siz
 
 | Pipeline | Index | Retrieval | Hit@3 |
 |---|---|---|---|
-| **New (v2)** | `wdjetzt` (SGB II / X / SGG) | Qwen3-Embedding 4B + BM25 + RRF | **15/15 = 1.00** |
-| **Legacy (v1)** | `laws_de` | multilingual-e5-base, nur dense | **3/15 = 0.20** |
-| **Delta** | | | **+0.80** |
+| **New (v2)** | `wdjetzt` Absatz-chunks (1477) | Qwen3-Embedding 4B + BM25 + dense-primary RRF | **15/15 = 1.00** (after tokenize + fusion fix) |
+| **Legacy (v1)** | `laws_de` | multilingual-e5-base — currently broken vs Qwen dim 2560 | n/a |
 
 Legacy-Hits lagen vor allem bei klaren SGB-X-Verfahrensfragen (Akteneinsicht § 25, Verwaltungsakt § 31, Anhörung § 24).  
 SGG-Fälle (Widerspruchsfrist, aufschiebende Wirkung, Revision) und die meisten SGB-II-Materiefälle waren bei Legacy MISS — oft fehlende/`?`-Paragraph-Metadata oder falsche Nachbarparagraphen (z. B. Frist → SGB X § 111 statt SGG § 84).
@@ -60,7 +59,9 @@ Voraussetzungen:
 
 ```bash
 # Repo-Root
-uv run python evals/retrieval/retriever_eval.py
+uv run python -m app.rag.eval.retriever_eval
+# or:
+uv run python app/rag/eval/retriever_eval.py
 ```
 
 Der Lauf:
