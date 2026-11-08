@@ -26,12 +26,6 @@ CLEANED_GLOB = "sg*.txt"
 COLLECTION_NAME = os.getenv("INGEST_COLLECTION", "wdjetzt")
 COLLECTION_METADATA = {"hnsw:space": "cosine"}
 
-REBUILD = os.getenv("INGEST_REBUILD", "false").strip().lower() in (
-    "1",
-    "true",
-    "yes",
-    "on",
-)
 EMBED_BATCH_SIZE = int(os.getenv("INGEST_BATCH_SIZE", "32"))
 
 @dataclass

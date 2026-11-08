@@ -10,7 +10,7 @@ python -m app.parser.parse_xml
 python scripts/update_corpus.py
 
 # then embed (separate, longer step):
-uv run python -m app.rag.v2.ingest   # set INGEST_REBUILD=true for full rebuild
+uv run python -m app.rag.v2.ingest_v2   # rebuilds when data/chroma_rebuild.flag is true
 ```
 
 | Script / service | Role |
@@ -36,11 +36,15 @@ docker compose --profile cron run --rm --entrypoint python corpus-cron /app/scri
 ```
 
 Schedule lives in `scripts/corpus.crontab` (`0 3 * * 1`).  
-Job updates **norms/cleaned only** — it does **not** rebuild Chroma. Re-embed when you want a new index:
+Job updates **norms/cleaned only** — it does **not** rebuild Chroma.
+`parse_xml` sets `data/chroma_rebuild.flag` to `true` when paragraphs were added/removed/changed.
+Then re-embed:
 
 ```bash
-INGEST_REBUILD=true uv run python -m app.rag.v2.ingest
+uv run python -m app.rag.v2.ingest_v2
 ```
+
+Successful ingest writes the flag back to `false`.
 
 ## Legacy HTML path
 
@@ -62,5 +66,5 @@ python app/parser/clean.py
 gii xml.zip  (weekly cron / manual)
    → data/raw_xml/{sgb2,sgbx,sgg}/*.xml
    → data/norms.jsonl
-   → Chroma (app.rag.v2.ingest, on demand)
+   → Chroma (app.rag.v2.ingest_v2, on demand when chroma_rebuild.flag is true)
 ```

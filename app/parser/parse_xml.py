@@ -146,7 +146,73 @@ def paragraph_slug(paragraph: str) -> str:
     return (m.group(1).lower() if m else "unknown")
 
 
+def _set_chroma_rebuild(needed: bool) -> None:
+    from app.rag.v2.rebuild_flag import write_rebuild_flag
+
+    write_rebuild_flag(needed)
+
+
+def _paragraph_key(law_key: str, paragraph: str) -> str:
+    return f"{law_key}::{paragraph}"
+
+
+def _load_previous_paragraph_map(path: Path) -> dict[str, str]:
+    """Map law_key::paragraph → full text (for change detection)."""
+    if not path.is_file():
+        return {}
+    out: dict[str, str] = {}
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            key = _paragraph_key(row.get("law_key") or "", row.get("paragraph") or "")
+            out[key] = row.get("text") or ""
+    return out
+
+
+def detect_corpus_changes(
+    norms: list[Norm], previous: dict[str, str]
+) -> tuple[bool, list[str]]:
+    """True when paragraphs were added, removed, or their text changed."""
+    current: dict[str, str] = {
+        _paragraph_key(n.law_key, n.paragraph): n.full_text() for n in norms
+    }
+    if not previous:
+        return True, [f"initial corpus ({len(current)} paragraphs)"]
+
+    reasons: list[str] = []
+    added = sorted(set(current) - set(previous))
+    removed = sorted(set(previous) - set(current))
+    changed = sorted(
+        k for k in set(current) & set(previous) if current[k] != previous[k]
+    )
+    if added:
+        reasons.append(f"added {len(added)}: {', '.join(added[:8])}" + ("…" if len(added) > 8 else ""))
+    if removed:
+        reasons.append(
+            f"removed {len(removed)}: {', '.join(removed[:8])}"
+            + ("…" if len(removed) > 8 else "")
+        )
+    if changed:
+        reasons.append(
+            f"changed text {len(changed)}: {', '.join(changed[:8])}"
+            + ("…" if len(changed) > 8 else "")
+        )
+    return bool(reasons), reasons
+
+
 def write_outputs(norms: list[Norm], write_cleaned: bool = True) -> None:
+    previous = _load_previous_paragraph_map(NORMS_JSONL)
+    needs_rebuild, reasons = detect_corpus_changes(norms, previous)
+    if needs_rebuild:
+        for reason in reasons:
+            print(f"[CORPUS CHANGE]: {reason}")
+        _set_chroma_rebuild(True)
+    else:
+        print("[CORPUS CHANGE]: none — rebuild flag left unchanged")
+
     NORMS_JSONL.parent.mkdir(parents=True, exist_ok=True)
     with NORMS_JSONL.open("w", encoding="utf-8") as f:
         for norm in norms:

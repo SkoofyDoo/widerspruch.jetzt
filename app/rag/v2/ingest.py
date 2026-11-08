@@ -1,3 +1,9 @@
+"""LEGACY ingest — do not extend.
+
+Use ``app.rag.v2.ingest_v2`` instead:
+``uv run python -m app.rag.v2.ingest_v2``
+"""
+
 from __future__ import annotations
 
 import json
@@ -5,6 +11,7 @@ import re
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_core.documents import Document
 
@@ -17,13 +24,13 @@ from app.rag.v2.ingest_config import (
     EMBED_BATCH_SIZE,
     MAX_CHARS_ONE_CHUNK,
     NORMS_JSONL,
-    REBUILD,
 )
+from app.rag.v2.rebuild_flag import read_rebuild_flag, write_rebuild_flag
 
 load_dotenv()
 
 print("=" * 70)
-print("RAG WITH LANGCHAIN")
+print("RAG WITH LANGCHAIN  [LEGACY — prefer app.rag.v2.ingest_v2]")
 print("=" * 70)
 
 
@@ -210,9 +217,16 @@ def main():
 
     chunks = chunking(documents)
 
-    collection = open_collection(rebuild=REBUILD)
-    if REBUILD or collection.count() == 0:
+    rebuild = read_rebuild_flag()
+    collection = open_collection(rebuild=rebuild)
+    if rebuild or collection.count() == 0:
         add_chunks(collection, chunks)
+        write_rebuild_flag(False)
+    else:
+        print(
+            "[CHROMA]: skip embed (rebuild flag is false — "
+            "re-run parse_xml after corpus changes)"
+        )
 
     query = (
         "Instruct: Given a question about German social law (SGB II / SGB X), "

@@ -6,7 +6,7 @@ import os
 
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils.embedding_functions import create_langchain_embedding
+from chromadb.utils.embedding_functions import ChromaLangchainEmbeddingFunction
 from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
 
@@ -39,8 +39,10 @@ def get_embedding():
     """Cached LangChain↔Chroma embedding function (Qwen via Ollama)."""
     global _ef
     if _ef is None:
-        _ef = create_langchain_embedding(
-            OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=EMBEDDINGS_BASE_URL)
+        _ef = ChromaLangchainEmbeddingFunction(
+            embedding_function=OllamaEmbeddings(
+                model=EMBEDDING_MODEL, base_url=EMBEDDINGS_BASE_URL
+            )
         )
     return _ef
 

@@ -32,7 +32,7 @@ data/raw_xml/{sgb2,sgbx,sgg}/*.xml
    │  app/parser/parse_xml.py
    ▼
 data/norms.jsonl  (+ data/cleaned/sg*.txt for legacy)
-   │  app/rag/v2/ingest.py
+   │  app/rag/v2/ingest_v2.py  (rebuild when data/chroma_rebuild.flag is true)
    ▼
 data/chroma  collection wdjetzt
 ```
