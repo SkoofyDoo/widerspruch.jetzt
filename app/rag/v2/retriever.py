@@ -35,6 +35,7 @@ def dense_search(collection, question: str, n: int) -> list[dict] :
             "paragraph": meta.get("paragraph", ""),
             "absatz": meta.get("absatz", ""),
             "source_file": meta.get("source_file", ""),
+            "source_url": meta.get("source_url", ""),
             "distance": float(dists[i]),
         })
     return items
@@ -65,6 +66,7 @@ def sparse_search(bm25, ids, docs, metas, question: str, n: int) -> list[dict]:
             "paragraph": meta.get("paragraph", " "), 
             "absatz": meta.get("absatz", " "), 
             "source_file": meta.get("source_file", " "), 
+            "source_url": meta.get("source_url", ""),
             "score": float(scores[i])
         })
     return items

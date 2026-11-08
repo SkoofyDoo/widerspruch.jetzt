@@ -100,6 +100,7 @@ def retrieve_hybrid(q: str, k: int, require_absatz: bool = True) -> List[dict]:
         row = {
             "id": cid,
             "source_file": it.get("source_file", ""),
+            "source_url": it.get("source_url", ""),
             "law": it.get("law", ""),
             "paragraph": it.get("paragraph", ""),
             "absatz": it.get("absatz", ""),

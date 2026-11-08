@@ -81,12 +81,14 @@ def norm_to_absatz_docs(row: dict) -> list[Document]:
     paragraph = row.get("paragraph") or ""
     source_xml = row.get("source_xml") or ""
     source_file = row.get("source_file") or f"{row.get('law_key', 'law')}.txt"
+    source_url = row.get("source_url") or ""
     base_meta = {
         "law": law,
         "paragraph": paragraph,
         "title": row.get("title") or "",
         "source_xml": source_xml,
         "source_file": source_file,
+        "source_url": source_url,
         "source": str(NORMS_JSONL),
     }
 

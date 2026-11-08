@@ -17,6 +17,7 @@ class SearchHit(BaseModel):
     score: float
     text: str
     source_file: str
+    source_url: str = ""
     law: str = ""
     paragraph: str = ""
 

@@ -27,6 +27,14 @@ LAW_NORMALIZE = {
     "SGG": ("SGG", "sgg"),
 }
 
+# Official HTML Einzelnorm pages on gesetze-im-internet.de
+# e.g. SGB II § 1 → https://www.gesetze-im-internet.de/sgb_2/__1.html
+GII_HTML_BASE = {
+    "sgb2": "https://www.gesetze-im-internet.de/sgb_2/",
+    "sgbx": "https://www.gesetze-im-internet.de/sgb_10/",
+    "sgg": "https://www.gesetze-im-internet.de/sgg/",
+}
+
 
 @dataclass
 class Absatz:
@@ -146,6 +154,15 @@ def paragraph_slug(paragraph: str) -> str:
     return (m.group(1).lower() if m else "unknown")
 
 
+def source_url_for(law_key: str, paragraph: str) -> str:
+    """Public HTML URL for this § on gesetze-im-internet.de."""
+    base = GII_HTML_BASE.get(law_key)
+    slug = paragraph_slug(paragraph)
+    if not base or slug == "unknown":
+        return ""
+    return f"{base}__{slug}.html"
+
+
 def _set_chroma_rebuild(needed: bool) -> None:
     from app.rag.v2.rebuild_flag import write_rebuild_flag
 
@@ -223,6 +240,7 @@ def write_outputs(norms: list[Norm], write_cleaned: bool = True) -> None:
                 "title": norm.title,
                 "source_xml": norm.source_xml,
                 "source_file": f"{norm.law_key}__{paragraph_slug(norm.paragraph)}.txt",
+                "source_url": source_url_for(norm.law_key, norm.paragraph),
                 "absätze": [asdict(a) for a in norm.absätze],
                 "text": norm.full_text(),
             }

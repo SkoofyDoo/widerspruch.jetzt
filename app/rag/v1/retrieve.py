@@ -91,6 +91,7 @@ def _collect_items_from_res(res, q: str, allowed, require_absatz: bool, k: int, 
         items.append({
             "id": ids[i],
             "source_file": meta.get("source_file", ""),
+            "source_url": meta.get("source_url", ""),
             "law": meta.get("law", ""),
             "paragraph": meta.get("paragraph", ""),
             "distance": dist,
@@ -199,6 +200,7 @@ def build_quellen_unique(items, max_cites: int = 8):
             "paragraph": it.get("paragraph", ""),
             "title": extract_title_from_text(it.get("text", "")),
             "source_file": it.get("source_file", ""),
+            "source_url": it.get("source_url", ""),
             "distance": it.get("distance", None),
         })
     return out
