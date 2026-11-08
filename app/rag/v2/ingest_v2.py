@@ -1,7 +1,7 @@
 """Ingest v2: norms.jsonl → Absatz chunks → LangChain Chroma.
 
-Source of truth for text is the XML pipeline (fetch_xml → parse_xml → norms.jsonl).
-This module only indexes; it does not fetch HTML or parse XML.
+Source of truth für text ist die XML Pipeline (fetch_xml → parse_xml → norms.jsonl).
+Dieses Modul ist nur für Indexieren, nicht für Parsen.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from app.rag.v2.rebuild_flag import read_rebuild_flag, write_rebuild_flag
 
 load_dotenv()
 
-# Secondary split only when a single Absatz is still too long for embedding.
+# Fallback split nur wenn der Absatz zu lang für Embeddungs ist.
 _FALLBACK_SPLITTER = RecursiveCharacterTextSplitter(
     chunk_size=MAX_CHARS_ONE_CHUNK,
     chunk_overlap=200,
@@ -43,10 +43,10 @@ _SLUG_RE = re.compile(r"[^\w\-]+", re.UNICODE)
 
 
 def load_norms(path: Path = NORMS_JSONL) -> list[dict]:
-    """Load structured paragraphs from XML parse output."""
+    """Laden der norm.jsonl Datei"""
     if not path.is_file():
         raise FileNotFoundError(
-            f"Missing {path}. Run: python -m app.parser.fetch_xml && "
+            f"[FEHLER]: 'norm.jsonl'{path} fehlt!. Starte: python -m app.parser.fetch_xml && "
             "python -m app.parser.parse_xml"
         )
     rows: list[dict] = []
@@ -56,7 +56,7 @@ def load_norms(path: Path = NORMS_JSONL) -> list[dict]:
             if not line:
                 continue
             rows.append(json.loads(line))
-    print(f"[LOAD]: {path.name} → {len(rows)} paragraphs")
+    print(f"[LOADING]: {path.name} → {len(rows)} paragraphs")
     return rows
 
 
@@ -67,7 +67,7 @@ def _header(row: dict) -> str:
 
 
 def _chunk_id(meta: dict, index: int) -> str:
-    """Stable id for Chroma (rebuild-friendly)."""
+    """Stable ID for Chroma (rebuild-friendly)."""
     law = _SLUG_RE.sub("_", (meta.get("law") or "law").lower())
     paragraph = _SLUG_RE.sub("_", (meta.get("paragraph") or "p").lower())
     absatz = _SLUG_RE.sub("_", (meta.get("absatz") or "x").lower()) or "x"
@@ -75,7 +75,7 @@ def _chunk_id(meta: dict, index: int) -> str:
 
 
 def norm_to_absatz_docs(row: dict) -> list[Document]:
-    """One Document per Absatz; page_content keeps § header for retrieval context."""
+    """Ein Document per Absatz; page_content keeps § header for retrieval context."""
     header = _header(row)
     law = row.get("law") or "UNKNOWN"
     paragraph = row.get("paragraph") or ""
